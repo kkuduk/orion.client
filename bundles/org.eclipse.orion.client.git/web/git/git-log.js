@@ -329,7 +329,7 @@ function setPageTitle(branchName, cloneName, cloneLocation, isRemote, isBranch){
 	}
 	pageTitle.innerHTML = title;
 	if(branchName){
-		document.title = cloneName ? (branchName + " on " + cloneName) : branchName;
+		document.title = cloneName ? "Log for " + cloneName + " - Git" : "Log for branch " + branchName + " - Git";
 	}
 }
 

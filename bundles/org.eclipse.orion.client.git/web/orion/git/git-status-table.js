@@ -9,8 +9,8 @@
  * Contributors: IBM Corporation - initial API and implementation
  ******************************************************************************/
 
-define(['require', 'dojo',  'orion/compare/compare-container', 'orion/commands', 'orion/globalCommands', 'orion/git/git-commit-navigator', 'orion/git/gitCommands', 'orion/util', 'dijit/layout/ContentPane'], function(
-		require, dojo,  mCompareContainer, mCommands, mGlobalCommands, mGitCommitNavigator, mGitCommands, mUtil) {
+define(['require', 'dojo',  'orion/compare/compare-container', 'orion/commands', 'orion/globalCommands', 'orion/git/git-commit-navigator', 'orion/git/gitCommands', 'orion/util', 'orion/breadcrumbs', 'dijit/layout/ContentPane'], function(
+		require, dojo,  mCompareContainer, mCommands, mGlobalCommands, mGitCommitNavigator, mGitCommands, mUtil, mBreadcrumbs) {
 
 	var orion = orion || {};
 
@@ -742,7 +742,9 @@ orion.GitStatusController = (function() {
 				function() {
 					return this;
 				}));
-			this._initTitleBar(true);
+
+			
+			this._initTitleBar(true,this._curClone);
 			this._logTableRenderer.renderAction();
 			this._remoteTableRenderer.renderAction();
 			
@@ -750,18 +752,37 @@ orion.GitStatusController = (function() {
 			this._committerAndAuthorZoneRenderer.hide();
 		},
 		
-		_initTitleBar:function(withBranchName){
-			var title = "Git Status";
+		_initTitleBar:function(withBranchName,resource){
+			var title = "Git Status ";
 			var location = "";
 			var branchName = this._curBranch ? this._curBranch.Name : "detached";
-			if(withBranchName) {
+			/*if(withBranchName) {
 				location = this._curClone.Name + " on " + branchName;
-			}
+			}*/
 			//render browser title
-			document.title = location;
+			document.title = "Status for " +  this._curClone.Name + " - Git ";
 			//render page title
 			//FIXME we should not know these global page ids inside component implementations
 			dojo.place(document.createTextNode(title), "pageTitle", "only");
+			var that = this;
+			var item = {};
+			var location_ = dojo.byId("location");
+			
+			var repository = resource;
+			item.Name = branchName;
+			item.Parents = [];
+			item.Parents[0] = {};
+			//item.Parents[0].Name = repository.Name;
+			item.Parents[0].Name = "Status";
+			//item.Parents[0].Location = repository.Location;
+			//item.Parents[0].ChildrenLocation = repository.Location;
+			item.Parents[1] = {};
+			item.Parents[1].Name = this._curClone.Name;
+			item.Parents[1].Location = repository.Location;
+			item.Parents[1].ChildrenLocation = repository.Location;
+			item.Parents[2] = {};
+			item.Parents[2].Name = "Repositories";
+
 			if(withBranchName) {
 				//render git status title on local branch 
 				this._logTableRenderer.modifyHeader(branchName);
@@ -771,11 +792,21 @@ orion.GitStatusController = (function() {
 					this._remoteTableRenderer.modifyHeader(branchName);
 				}
 				//render page tilte details (clone name + remote name + local branch name)
-				dojo.place(document.createTextNode(this._curClone.Name + " on " + branchName), "location", "only");
+				//dojo.place(document.createTextNode(this._curClone.Name + " on " + branchName), "location", "only");
+
+
 			}
+			new mBreadcrumbs.BreadCrumbs({
+				container: location_,
+				resource: item,
+				makeHref:function(seg, location_){
+					seg.href = "/git/git-repository.html#" + (location_ ? location_ : "");
+				}
+			});
 			mUtil.forceLayout("pageTitle");
 
 		},
+		
 		
 		_getCloneInfo:function(){
 			var that = this;
