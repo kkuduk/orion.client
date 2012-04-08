@@ -158,14 +158,30 @@ define("orion/textview/textView", ['orion/textview/textModel', 'orion/textview/k
 	
 	TextView.prototype = /** @lends orion.textview.TextView.prototype */ {
 		/**
-		 * Adds a ruler to the text view.
+		 * Adds a ruler to the text view at the specified position.
+		 * <p>
+		 * The position is relative to the ruler location.
+		 * </p>
 		 *
 		 * @param {orion.textview.Ruler} ruler the ruler.
+		 * @param {Number} [index=length] the ruler index.
 		 */
-		addRuler: function (ruler) {
-			this._rulers.push(ruler);
+		addRuler: function (ruler, index) {
 			ruler.setView(this);
-			this._createRuler(ruler);
+			var rulers = this._rulers;
+			if (index !== undefined) {
+				var i, sideIndex;
+				for (i = 0, sideIndex=0; i < rulers.length && sideIndex < index; i++) {
+					if (ruler.getLocation() === rulers[i].getLocation()) {
+						sideIndex++;
+					}
+				}
+				rulers.splice(sideIndex, 0, ruler);
+				index = sideIndex;
+			} else {
+				rulers.push(ruler);
+			}
+			this._createRuler(ruler, index);
 			this._updatePage();
 		},
 		computeSize: function() {
@@ -724,7 +740,6 @@ define("orion/textview/textView", ['orion/textview/textModel', 'orion/textview/k
 		},
 		/**
 		* Returns if the view is destroyed.
-		* <p>
 		* @returns {Boolean} <code>true</code> if the view is destroyed.
 		*/
 		isDestroyed: function () {
@@ -2594,18 +2609,23 @@ define("orion/textview/textView", ['orion/textview/textModel', 'orion/textview/k
 			var selection = this._getSelection();
 			var caret = selection.getCaret();
 			var lineIndex = model.getLineAtOffset(caret);
+			var x = this._columnX;
+			var scrollX = this._getScroll().x;
+			if (x === -1 || args.wholeLine || (args.select && isIE)) {
+				var offset = args.wholeLine ? model.getLineEnd(lineIndex + 1) : caret;
+				x = this._getOffsetToX(offset) + scrollX;
+			}
 			if (lineIndex + 1 < model.getLineCount()) {
-				var scrollX = this._getScroll().x;
-				var x = this._columnX;
-				if (x === -1 || args.wholeLine || (args.select && isIE)) {
-					var offset = args.wholeLine ? model.getLineEnd(lineIndex + 1) : caret;
-					x = this._getOffsetToX(offset) + scrollX;
-				}
 				selection.extend(this._getXToOffset(lineIndex + 1, x - scrollX));
 				if (!args.select) { selection.collapse(); }
 				this._setSelection(selection, true, true);
-				this._columnX = x;
+			} else {
+				if (args.select) {
+					selection.extend(model.getCharCount());
+					this._setSelection(selection, true, true);
+				}
 			}
+			this._columnX = x;
 			return true;
 		},
 		_doLineUp: function (args) {
@@ -2613,18 +2633,23 @@ define("orion/textview/textView", ['orion/textview/textModel', 'orion/textview/k
 			var selection = this._getSelection();
 			var caret = selection.getCaret();
 			var lineIndex = model.getLineAtOffset(caret);
+			var x = this._columnX;
+			var scrollX = this._getScroll().x;
+			if (x === -1 || args.wholeLine || (args.select && isIE)) {
+				var offset = args.wholeLine ? model.getLineStart(lineIndex - 1) : caret;
+				x = this._getOffsetToX(offset) + scrollX;
+			}
 			if (lineIndex > 0) {
-				var scrollX = this._getScroll().x;
-				var x = this._columnX;
-				if (x === -1 || args.wholeLine || (args.select && isIE)) {
-					var offset = args.wholeLine ? model.getLineStart(lineIndex - 1) : caret;
-					x = this._getOffsetToX(offset) + scrollX;
-				}
 				selection.extend(this._getXToOffset(lineIndex - 1, x - scrollX));
 				if (!args.select) { selection.collapse(); }
 				this._setSelection(selection, true, true);
-				this._columnX = x;
+			} else {
+				if (args.select) {
+					selection.extend(0);
+					this._setSelection(selection, true, true);
+				}
 			}
+			this._columnX = x;
 			return true;
 		},
 		_doPageDown: function (args) {
@@ -3363,7 +3388,7 @@ define("orion/textview/textView", ['orion/textview/textModel', 'orion/textview/k
 			}
 			return child;
 		},
-		_createRuler: function(ruler) {
+		_createRuler: function(ruler, index) {
 			if (!this._clientDiv) { return; }
 			var side = ruler.getLocation();
 			var rulerParent = side === "left" ? this._leftDiv : this._rightDiv;
@@ -3372,7 +3397,8 @@ define("orion/textview/textView", ['orion/textview/textModel', 'orion/textview/k
 			div.rulerChanged = true;
 			div.style.position = "relative";
 			var row = rulerParent.firstChild.rows[0];
-			var index = row.cells.length;
+			var length = row.cells.length;
+			index = index === undefined || index < 0 || index > length ? length : index;
 			var cell = row.insertCell(index);
 			cell.vAlign = "top";
 			cell.appendChild(div);
@@ -3482,6 +3508,7 @@ define("orion/textview/textView", ['orion/textview/textModel', 'orion/textview/k
 			clientDiv.style.padding = "0px";
 			clientDiv.style.outline = "none";
 			clientDiv.style.zIndex = "1";
+			clientDiv.style.WebkitUserSelect = "text";
 			clientDiv.setAttribute("spellcheck", "false");
 			if (isPad) {
 				clientDiv.style.WebkitTapHighlightColor = "transparent";
@@ -4380,6 +4407,7 @@ define("orion/textview/textView", ['orion/textview/textModel', 'orion/textview/k
 			if (isIE) {
 				handlers.push({target: leftDiv, type: "selectstart", handler: function() {return false;}});
 			}
+			handlers.push({target: leftDiv, type: isFirefox ? "DOMMouseScroll" : "mousewheel", handler: function(e) { return self._handleMouseWheel(e); }});
 			handlers.push({target: leftDiv, type: "click", handler: function(e) { self._handleRulerEvent(e); }});
 			handlers.push({target: leftDiv, type: "dblclick", handler: function(e) { self._handleRulerEvent(e); }});
 			handlers.push({target: leftDiv, type: "mousemove", handler: function(e) { self._handleRulerEvent(e); }});
@@ -4388,6 +4416,7 @@ define("orion/textview/textView", ['orion/textview/textModel', 'orion/textview/k
 			if (isIE) {
 				handlers.push({target: rightDiv, type: "selectstart", handler: function() {return false;}});
 			}
+			handlers.push({target: rightDiv, type: isFirefox ? "DOMMouseScroll" : "mousewheel", handler: function(e) { return self._handleMouseWheel(e); }});
 			handlers.push({target: rightDiv, type: "click", handler: function(e) { self._handleRulerEvent(e); }});
 			handlers.push({target: rightDiv, type: "dblclick", handler: function(e) { self._handleRulerEvent(e); }});
 			handlers.push({target: rightDiv, type: "mousemove", handler: function(e) { self._handleRulerEvent(e); }});

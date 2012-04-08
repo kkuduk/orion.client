@@ -724,33 +724,40 @@ define("orion/textview/annotations", ['i18n!orion/textview/nls/messages', 'orion
 			return result;
 		},
 		_mergeStyleRanges: function(ranges, styleRange) {
-			if (!ranges) { return; }
-			for (var i=0; i<ranges.length; i++) {
+			if (!ranges) {
+				ranges = [];
+			}
+			var mergedStyle, i;
+			for (i=0; i<ranges.length && styleRange; i++) {
 				var range = ranges[i];
 				if (styleRange.end <= range.start) { break; }
 				if (styleRange.start >= range.end) { continue; }
-				var mergedStyle = this._mergeStyle({}, range.style);
+				mergedStyle = this._mergeStyle({}, range.style);
 				mergedStyle = this._mergeStyle(mergedStyle, styleRange.style);
-				if (styleRange.start <= range.start && styleRange.end >= range.end) {
-					ranges[i] = {start: range.start, end: range.end, style: mergedStyle};
-				} else if (styleRange.start > range.start && styleRange.end < range.end) {
-					ranges.splice(i, 1,
-						{start: range.start, end: styleRange.start, style: range.style},
-						{start: styleRange.start, end: styleRange.end, style: mergedStyle},
-						{start: styleRange.end, end: range.end, style: range.style});
-					i += 2;
-				} else if (styleRange.start > range.start) {
-					ranges.splice(i, 1,
-						{start: range.start, end: styleRange.start, style: range.style},
-						{start: styleRange.start, end: range.end, style: mergedStyle});
-					i += 1;
-				} else if (styleRange.end < range.end) {
-					ranges.splice(i, 1,
-						{start: range.start, end: styleRange.end, style: mergedStyle},
-						{start: styleRange.end, end: range.end, style: range.style});
-					i += 1;
+				var args = [];
+				args.push(i, 1);
+				if (styleRange.start < range.start) {
+					args.push({start: styleRange.start, end: range.start, style: styleRange.style});
 				}
+				if (styleRange.start > range.start) {
+					args.push({start: range.start, end: styleRange.start, style: range.style});
+				}
+				args.push({start: Math.max(range.start, styleRange.start), end: Math.min(range.end, styleRange.end), style: mergedStyle});
+				if (styleRange.end < range.end) {
+					args.push({start: styleRange.end, end: range.end, style: range.style});
+				}
+				if (styleRange.end > range.end) {
+					styleRange = {start: range.end, end: styleRange.end, style: styleRange.style};
+				} else {
+					styleRange = null;
+				}
+				Array.prototype.splice.apply(ranges, args);
 			}
+			if (styleRange) {
+				mergedStyle = this._mergeStyle({}, styleRange.style);
+				ranges.splice(i, 0, {start: styleRange.start, end: styleRange.end, style: mergedStyle});
+			}
+			return ranges;
 		},
 		_onAnnotationModelChanged: function(e) {
 			if (e.textModelChangedEvent) {
@@ -802,7 +809,7 @@ define("orion/textview/annotations", ['i18n!orion/textview/nls/messages', 'orion
 						annotationStart = viewModel.mapOffset(annotationStart, true);
 						annotationEnd = viewModel.mapOffset(annotationEnd, true);
 					}
-					this._mergeStyleRanges(e.ranges, {start: annotationStart, end: annotationEnd, style: annotation.rangeStyle});
+					e.ranges = this._mergeStyleRanges(e.ranges, {start: annotationStart, end: annotationEnd, style: annotation.rangeStyle});
 				}
 				if (annotation.lineStyle) {
 					e.style = this._mergeStyle({}, e.style);

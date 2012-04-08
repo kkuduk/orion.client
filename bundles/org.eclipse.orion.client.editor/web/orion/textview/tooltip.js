@@ -127,20 +127,23 @@ define("orion/textview/tooltip", ['i18n!orion/textview/nls/messages', 'orion/tex
 			} else {
 				return;
 			}
-			var left = parseInt(this._getNodeStyle(tooltipDiv, "padding-left", "0"), 10);
-			left += parseInt(this._getNodeStyle(tooltipDiv, "border-left-width", "0"), 10);
+			var documentElement = tooltipDiv.ownerDocument.documentElement;
 			if (info.anchor === "right") {
-				var right = parseInt(this._getNodeStyle(tooltipDiv, "padding-right", "0"), 10);
-				right += parseInt(this._getNodeStyle(tooltipDiv, "border-right-width", "0"), 10);
-				tooltipDiv.style.right = (tooltipDiv.ownerDocument.body.getBoundingClientRect().right - info.x + left + right) + "px";
+				var right = documentElement.clientWidth - info.x;
+				tooltipDiv.style.right = right + "px";
+				tooltipDiv.style.maxWidth = (documentElement.clientWidth - right - 10) + "px";
 			} else {
-				tooltipDiv.style.left = (info.x - left) + "px";
+				var left = parseInt(this._getNodeStyle(tooltipDiv, "padding-left", "0"), 10);
+				left += parseInt(this._getNodeStyle(tooltipDiv, "border-left-width", "0"), 10);
+				left = info.x - left;
+				tooltipDiv.style.left = left + "px";
+				tooltipDiv.style.maxWidth = (documentElement.clientWidth - left - 10) + "px";
 			}
 			var top = parseInt(this._getNodeStyle(tooltipDiv, "padding-top", "0"), 10);
 			top += parseInt(this._getNodeStyle(tooltipDiv, "border-top-width", "0"), 10);
-			tooltipDiv.style.top = (info.y - top) + "px";
-			tooltipDiv.style.maxWidth = info.maxWidth + "px";
-			tooltipDiv.style.maxHeight = info.maxHeight + "px";
+			top = info.y - top;
+			tooltipDiv.style.top = top + "px";
+			tooltipDiv.style.maxHeight = (documentElement.clientHeight - top - 10) + "px";
 			tooltipDiv.style.opacity = "1";
 			tooltipDiv.style.visibility = "visible";
 			if (autoHide) {
@@ -169,12 +172,24 @@ define("orion/textview/tooltip", ['i18n!orion/textview/nls/messages', 'orion/tex
 				var textEnd = baseModel.getLineEnd(baseModel.getLineAtOffset(end), true);
 				return baseModel.getText(textStart, textEnd);
 			}
-			var title;
+			function getAnnotationHTML(annotation) {
+				var title = annotation.title;
+				if (title === "") { return null; }
+				var result = "<div>";
+				if (annotation.html) {
+					result += annotation.html + "&nbsp;";
+				}
+				if (!title) {
+					title = getText(annotation.start, annotation.end);
+				}
+				title = title.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+				result += "<span style='vertical-align:middle;'>" + title + "</span><div>";
+				return result;
+			}
 			if (annotations.length === 1) {
 				annotation = annotations[0];
-				if (annotation.title) {
-					title = annotation.title.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-					return "<div>" + annotation.html + "&nbsp;<span style='vertical-align:middle;'>" + title + "</span><div>";
+				if (annotation.title !== undefined) {
+					return getAnnotationHTML(annotation);
 				} else {
 					var newModel = new mProjectionTextModel.ProjectionTextModel(baseModel);
 					var lineStart = baseModel.getLineStart(baseModel.getLineAtOffset(annotation.start));
@@ -191,12 +206,10 @@ define("orion/textview/tooltip", ['i18n!orion/textview/nls/messages', 'orion/tex
 				var tooltipHTML = "<div><em>" + messages.multipleAnnotations + "</em></div>";
 				for (var i = 0; i < annotations.length; i++) {
 					annotation = annotations[i];
-					title = annotation.title;
-					if (!title) {
-						title = getText(annotation.start, annotation.end);
+					var html = getAnnotationHTML(annotation);
+					if (html) {
+						tooltipHTML += html;
 					}
-					title = title.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-					tooltipHTML += "<div>" + annotation.html + "&nbsp;<span style='vertical-align:middle;'>" + title + "</span><div>";
 				}
 				return tooltipHTML;
 			}

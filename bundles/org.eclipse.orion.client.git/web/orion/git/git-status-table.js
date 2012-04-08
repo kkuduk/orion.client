@@ -1,6 +1,6 @@
 /******************************************************************************* 
  * @license
- * Copyright (c) 2009, 2011 IBM Corporation and others.
+ * Copyright (c) 2009, 2012 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials are made 
  * available under the terms of the Eclipse Public License v1.0 
  * (http://www.eclipse.org/legal/epl-v10.html), and the Eclipse Distribution 
@@ -291,7 +291,7 @@ orion.GitStatusTableRenderer = (function() {
 		
 			dojo.addClass(this._cmdSpan, "paneHeadingCommands");
 			this._statusContentId = this._parentId + "_" + this._type;
-			dojo.create("div", {id:this._statusContentId}, this._parentId, "last");
+			dojo.create("section", {id:this._statusContentId, role: "region", "aria-labelledby": this._type + "_header"}, this._parentId, "last");
 		},
 		
 		select: function(selected){
@@ -333,19 +333,19 @@ orion.GitCommitZoneRenderer = (function() {
 	}
 	GitCommitZoneRenderer.prototype = {
 		render: function (renderSeparator) {
-			this._commitZone = dojo.create("div", null, this._parentId, "last");
-			var headingSection = dojo.create("div", null, this._commitZone);
+			this._commitZone = dojo.create("section", {role: "region", "aria-labelledby":"commitHeader"}, this._parentId, "last");
+			var headingSection = dojo.create("div", {id: "commitHeader"}, this._commitZone);
 			dojo.addClass(headingSection, "auxpaneHeading paneHeadingFixed");
 			var title = dojo.create("span", {innerHTML: "Commit message"}, headingSection);
 			
-			var commitTable = dojo.create("table", null, this._commitZone);
+			var commitTable = dojo.create("table", {role: "presentation"}, this._commitZone);
 			var commitRow = dojo.create("tr", null, commitTable);
 			var messageCol = dojo.create("td", {nowrap :true}, commitRow, "last");
 			var text = dojo.create("textarea", {id:"commitMessage", ROWS:6}, messageCol, "last");
 			dojo.addClass(text, "pane");
 			var actionCol = dojo.create("td", {nowrap :true}, commitRow, "last");
 			var actionDiv = dojo.create("div", {style:"float: left;", align:"left"}, actionCol, "last");
-			var actionTable = dojo.create("table", null,actionDiv);
+			var actionTable = dojo.create("table", {role: "presentation"}, actionDiv);
 			var actionRow1 = dojo.create("tr", null, actionTable);
 			var actionCol1 = dojo.create("td", {nowrap :true}, actionRow1, "last");
 			dojo.create("button", {id:"commit", innerHTML: "Commit", title: "Record changes in the active branch"}, actionCol1, "last");
@@ -497,7 +497,7 @@ orion.GitLogTableRenderer = (function() {
 	}
 	GitLogTableRenderer.prototype = {
 		render: function (renderSeparator) {
-			var section = dojo.create("div", {id:this._sectionId}, this._parentId);
+			var section = dojo.create("section", {id: this._sectionId, role: "region", "aria-labelledby": this._type + "_header"}, this._parentId);
 			var headingSection = mUtil.createPaneHeading(section, this._type + "heading", this._header, true, this._type + "_header", this._type + "commands");
 			dojo.addClass(headingSection, "paneHeadingFixed");
 			var idAdditional = this._type+"commandSpanAdditional";
