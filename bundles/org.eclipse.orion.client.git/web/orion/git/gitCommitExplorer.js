@@ -64,10 +64,12 @@ define(['i18n!git/nls/gitmessages', 'dojo', 'orion/explorer', 'orion/util', 'ori
 			var that = this;
 			var progressService = this.registry.getService("orion.page.message");
 
-			progressService.setProgressMessage(messages["Loading..."]);
+			var loadingDeferred = new dojo.Deferred();
+			progressService.showWhile(loadingDeferred, messages["Loading..."]);
 			this.registry.getService("orion.git.provider").getGitClone(location).then(
 				function(resp){					
 					if (resp.Children.length === 0) {
+						loadingDeferred.callback();
 						that.initTitleBar();
 						that.displayCommit();
 					} else if (resp.Children.length == 1 && resp.Children[0].Type === "Commit") {
@@ -75,6 +77,7 @@ define(['i18n!git/nls/gitmessages', 'dojo', 'orion/explorer', 'orion/util', 'ori
 						
 						that.registry.getService("orion.git.provider").getGitClone(resp.CloneLocation).then(
 							function(resp){
+								loadingDeferred.callback();
 								var repositories = resp.Children;
 								
 								that.initTitleBar(commits[0], repositories[0]);
@@ -87,13 +90,15 @@ define(['i18n!git/nls/gitmessages', 'dojo', 'orion/explorer', 'orion/util', 'ori
 								
 								// render commands
 								mGitCommands.updateNavTools(that.registry, that, "pageActions", "selectionTools", commits[0]);
-							}, function () {
+							}, function (error) {
+								loadingDeferred.callback();
 								dojo.hitch(that, that.handleError)(error);
 							}
 						);
 					}	
 					progressService.setProgressMessage("");
 				}, function(error){
+					loadingDeferred.callback();
 					dojo.hitch(that, that.handleError)(error);
 				}
 			);
@@ -276,6 +281,7 @@ define(['i18n!git/nls/gitmessages', 'dojo', 'orion/explorer', 'orion/util', 'ori
 
 			var actionsArea = dojo.create( "div", {"id":"diffActionsArea_" + index, "class":"sectionTableItemActions"}, diffDetailsHorizontalBox );
 			this.commandService.renderCommands(this.actionScopeId, actionsArea, diff, this, "tool", false);	
+			var compareActionsArea = dojo.create( "div", {"id":"compareActionsArea_" + index, "class":"sectionTableItemActions"}, diffDetailsHorizontalBox );
 			
 			// add inline compare view
 			
@@ -287,7 +293,7 @@ define(['i18n!git/nls/gitmessages', 'dojo', 'orion/explorer', 'orion/util', 'ori
 			var diffProvider = new mCompareContainer.DefaultDiffProvider(this.registry);
 			
 			var diffOptions = {
-				readonly: true,
+				commandSpanId: compareActionsArea.id,
 				diffProvider: diffProvider,
 				callback : function(){}
 			};

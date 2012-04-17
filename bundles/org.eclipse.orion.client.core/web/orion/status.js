@@ -59,6 +59,7 @@ define(['require', 'dojo', 'orion/util'], function(require, dojo, mUtil) {
 		 */
 		setMessage : function(msg, timeout, isAccessible) {
 			this._init();
+			this.currentMessage = msg;
 			if(typeof(isAccessible) === "boolean") {
 				var that = this;
 				var node = dojo.byId(this.domId);
@@ -66,8 +67,8 @@ define(['require', 'dojo', 'orion/util'], function(require, dojo, mUtil) {
 				// this should be done by toggling that instead
 				var readSetting = dojo.attr(node, "aria-live");
 				dojo.attr(node, "aria-live", isAccessible ? "polite" : "off");
-				window.setTimeout(function() { dojo.place(window.document.createTextNode(msg), that.domId, "only"); }, 40);
-				window.setTimeout(function() { dojo.attr(node, "aria-live", readSetting); }, 150);
+				window.setTimeout(function() { dojo.place(window.document.createTextNode(msg), that.domId, "only"); }, 100);
+				window.setTimeout(function() { dojo.attr(node, "aria-live", readSetting); }, 200);
 			}
 			else { 
 				dojo.place(window.document.createTextNode(msg), this.domId, "only"); 
@@ -92,6 +93,7 @@ define(['require', 'dojo', 'orion/util'], function(require, dojo, mUtil) {
 		 * from the Orion server.
 		 */
 		setErrorMessage : function(st) {
+			this.currentMessage = st;
 			this._init();
 			//could be: responseText from xhrGet, dojo deferred error object, or plain string
 			var status = st.responseText || st.message || st;
@@ -128,6 +130,7 @@ define(['require', 'dojo', 'orion/util'], function(require, dojo, mUtil) {
 		 */
 		setProgressMessage : function(message) {
 			this._init();
+			this.currentMessage = message;
 			var image = dojo.create("span", {"class": "imageSprite core-sprite-progress"});
 			dojo.place(image, this.progressDomId, "only");
 			dojo.place(window.document.createTextNode(message), this.progressDomId, "last");
@@ -147,6 +150,7 @@ define(['require', 'dojo', 'orion/util'], function(require, dojo, mUtil) {
 		 * from the Orion server.
 		 */
 		setProgressResult : function(message) {
+			this.currentMessage = message;
 			//could either be responseText from xhrGet or just a string
 			var status = message.responseText || message;
 			//accept either a string or a JSON representation of an IStatus
@@ -193,46 +197,19 @@ define(['require', 'dojo', 'orion/util'], function(require, dojo, mUtil) {
 		},
 		
 		/**
-		 * Shows a progress message until the given deferred is resolved. Returns a deferred that resolves when
-		 * the operation completes.
-		 * 
-		 * @Deprecated use orion.page.progress showWhile method with the same signature
+		 * Shows a progress message until the given deferred is resolved.
 		 */
 		showWhile: function(deferred, message) {
 			var that = this;
-			that.setProgressMessage(message);
-			return deferred.then(function(result) {
-				//see if we are dealing with a progress resource
-				if (result && result.Location && result.Message && result.Running) {
-					return dojo.hitch(that, that._doProgressWhile)(result);
-				}
-				//clear the progress message
-				that.setProgressMessage("");
-				// if there is a result, show it.
-				if (result && result.Result) {
-					that.setProgressResult(result.Result);
-				}
-				//return the final result so it is available to caller's deferred chain
-				return result;
-			});
-		},
-	
-		/**
-		 * Helper method used to implement showWhile.
-		 * @private
-		 */	
-		_doProgressWhile: function(progress) {
-			var deferred = new dojo.Deferred();
-			var that = this;
-			//sleep for awhile before we get more progress
-			window.setTimeout(function() {
-				that._operationsClient.getOperation(progress.Location).then(function(jsonData, ioArgs) {
-						//jsonData is either the final result or a progress resource
-						deferred.callback(jsonData);
-					});
-			}, 2000);
-			//recurse until operation completes
-			return this.showWhile(deferred, progress.Message);
+			if(message){
+				that.setProgressMessage(message);
+				deferred.addBoth(function(){
+					if(message === that.currentMessage){
+						that.setProgressMessage("");		
+					}
+				});
+			}
+			return deferred;
 		}
 	};
 	StatusReportingService.prototype.constructor = StatusReportingService;

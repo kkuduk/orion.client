@@ -408,10 +408,11 @@ var exports = {};
 					if (item.Repository != null) {
 						repositoryLocation = item.Repository.Location;
 					} else {
-						repositoryLocation = item.parent.parent.Location
+						repositoryLocation = item.parent.parent.Location;
 					}
-					
-					serviceRegistry.getService("orion.git.provider").checkoutTag(repositoryLocation, item.Name, name).then(function() {
+					var progressService = serviceRegistry.getService("orion.page.message");
+					progressService.showWhile(serviceRegistry.getService("orion.git.provider").checkoutTag(repositoryLocation, item.Name, name),
+					"Checking out tag " + name).then(function() {
 						dojo.hitch(explorer, explorer.changedItem)(getBranchItem());
 					}, displayErrorOnStatus);
 				}, undefined, true);
@@ -434,14 +435,20 @@ var exports = {};
 				var service = serviceRegistry.getService("orion.git.provider");
 				var progressService = serviceRegistry.getService("orion.page.message");
 				
-				progressService.setProgressMessage("Checking out branch...");
+				var checkingOutDeferred = new dojo.Deferred();
+				progressService.showWhile(checkingOutDeferred,
+					item.Name ? "Checking out branch " + item.Name + "..." : "Checking out branch...");
 				if (item.Type === "Branch") {
 					service.checkoutBranch(item.CloneLocation, item.Name).then(
 						function(){
 							dojo.hitch(explorer, explorer.changedItem)(item.parent);
-							progressService.setProgressResult("Ok");
+							checkingOutDeferred.callback();
+							progressService.setProgressResult("Branch checked out.");
 						},
-						 displayErrorOnStatus
+						 function(error){
+							checkingOutDeferred.callback(); 
+							displayErrorOnStatus(error);
+						 }
 					);
 				} else {
 					var branchLocation;
@@ -456,12 +463,18 @@ var exports = {};
 							service.checkoutBranch(branch.CloneLocation, branch.Name).then(
 								function(){
 									dojo.hitch(explorer, explorer.changedItem)(item.Repository ? item.Repository.BranchLocation : item.parent.parent.parent);
-									progressService.setProgressResult("Ok");
+									progressService.setProgressResult("Branch checked out.");
 								},
-								displayErrorOnStatus
+								function(error){
+									checkingOutDeferred.callback(); 
+									displayErrorOnStatus(error);
+								}
 							);
 						},
-					displayErrorOnStatus
+						function(error){
+							checkingOutDeferred.callback(); 
+							displayErrorOnStatus(error);
+						 }
 					);
 				}
 			},
@@ -545,10 +558,10 @@ var exports = {};
 				exports.getDefaultSshOptions(serviceRegistry).then(function(options){
 					var func = arguments.callee;
 					var gitService = serviceRegistry.getService("orion.git.provider");
-					gitService.doPush(item.Location, "", false, false, null,
-							"Removing remote branch: " + item.Name,
+					var progressService = serviceRegistry.getService("orion.page.message");
+					progressService.showWhile(gitService.doPush(item.Location, "", false, false,
 							options.gitSshUsername, options.gitSshPassword, options.knownHosts, options.gitPrivateKey,
-							options.gitPassphrase).then(function(remoteJsonData) {
+							options.gitPassphrase), "Removing remote branch: " + item.Name).then(function(remoteJsonData) {
 						exports.handleProgressServiceResponse(remoteJsonData, options, serviceRegistry, function(jsonData) {
 							if (jsonData.Result.Severity == "Ok")
 								dojo.hitch(explorer, explorer.changedItem)(item.parent);
@@ -639,37 +652,17 @@ var exports = {};
 				exports.getDefaultSshOptions(serviceRegistry).then(function(options) {
 					var func = arguments.callee;
 					var gitService = serviceRegistry.getService("orion.git.provider");
-					gitService.doPull(path, false, null,
+					var statusService = serviceRegistry.getService("orion.page.message");
+					statusService.showWhile(gitService.doPull(path, false,
 							options.gitSshUsername,
 							options.gitSshPassword,
 							options.knownHosts,
 							options.gitPrivateKey,
-							options.gitPassphrase).then(function(jsonData) {
+							options.gitPassphrase), "Pulling : " + path).then(function(jsonData) {
 						exports.handleProgressServiceResponse(jsonData, options, serviceRegistry, function(jsonData) {
-							dojo.xhrGet({
-								url: path,
-								headers: { "Orion-Version": "1"	},
-								postData: dojo.toJson({
-									"GitSshUsername": options.gitSshUsername,
-									"GitSshPassword": options.gitSshPassword,
-									"GitSshPrivateKey": options.gitPrivateKey,
-									"GitSshPassphrase": options.gitPassphrase,
-									"GitSshKnownHost": options.knownHosts
-								}),
-								handleAs: "json",
-								timeout: 5000,
-								load: function(jsonData, secondArg) {
-									return jsonData;
-								},
-								error: function(error, ioArgs) {
-									console.error("HTTP status code: ", ioArgs.xhr.status);
-									return error;
-								}
-							}).then(function(remoteJsonData) {
-								if (item.Type === "Clone") {
-									dojo.hitch(explorer, explorer.changedItem)(item);
-								}
-							}, displayErrorOnStatus);
+							if (item.Type === "Clone") {
+								dojo.hitch(explorer, explorer.changedItem)(item);
+							}
 						}, func, "Pull Git Repository");
 					}, function(jsonData, secondArg) {
 						exports.handleProgressServiceResponse(jsonData, options, serviceRegistry, function() {}, func, "Pull Git Repository");
@@ -758,7 +751,7 @@ var exports = {};
 			hrefCallback : function(data) {
 				var item = data.items;
 				var clientDeferred = new dojo.Deferred();
-				serviceRegistry.getService("orion.git.provider").getDiff(item[1].DiffLocation, item[0].Name, function(jsonData, secondArg) {
+				serviceRegistry.getService("orion.git.provider").getDiff(item[1].DiffLocation, item[0].Name).then(function(jsonData, secondArg) {
 					clientDeferred.callback(require.toUrl("compare/compare.html") + "?readonly#" + secondArg.xhr.getResponseHeader("Location"));
 				});
 				return clientDeferred;
@@ -834,12 +827,13 @@ var exports = {};
 				exports.gatherSshCredentials(serviceRegistry, commandInvocation).then(
 					function(options) {
 						var gitService = serviceRegistry.getService("orion.git.provider");
-						gitService.doFetch(path, false, null,
+						var statusService = serviceRegistry.getService("orion.page.message");
+						statusService.showWhile(gitService.doFetch(path, false,
 								options.gitSshUsername,
 								options.gitSshPassword,
 								options.knownHosts,
 								options.gitPrivateKey,
-								options.gitPassphrase).then(
+								options.gitPassphrase), "Fetching remote: " + path).then(
 							function(jsonData, secondArg) {
 								exports.handleProgressServiceResponse2(jsonData, serviceRegistry, 
 									function() {
@@ -847,7 +841,8 @@ var exports = {};
 											function(jsonData){
 												var remoteJsonData = jsonData;
 												if (explorer.parentId === "explorer-tree") {
-													gitService.getLog(remoteJsonData.HeadLocation, remoteJsonData.Id, "Getting git incoming changes", function(loadScopedCommitsList) {
+													dojo.place(document.createTextNode("Getting git incoming changes..."), "explorer-tree", "only");
+													gitService.getLog(remoteJsonData.HeadLocation, remoteJsonData.Id).then(function(loadScopedCommitsList) {
 														explorer.renderer.setIncomingCommits(loadScopedCommitsList.Children);
 														explorer.loadCommitsList(remoteJsonData.CommitLocation + "?page=1", remoteJsonData, true);
 													});
@@ -914,12 +909,13 @@ var exports = {};
 				exports.gatherSshCredentials(serviceRegistry, commandInvocation).then(
 					function(options) {
 						var gitService = serviceRegistry.getService("orion.git.provider");
-						gitService.doFetch(path, true, null,
+						var statusService = serviceRegistry.getService("orion.page.message");
+						statusService.showWhile(gitService.doFetch(path, true,
 								options.gitSshUsername,
 								options.gitSshPassword,
 								options.knownHosts,
 								options.gitPrivateKey,
-								options.gitPassphrase).then(
+								options.gitPassphrase), "Fetching remote: " + path).then(
 							function(jsonData, secondArg) {
 								exports.handleProgressServiceResponse2(jsonData, serviceRegistry, 
 									function() {
@@ -927,7 +923,8 @@ var exports = {};
 											function(jsonData){
 												var remoteJsonData = jsonData;
 												if (explorer.parentId === "explorer-tree") {
-													gitService.getLog(remoteJsonData.HeadLocation, remoteJsonData.Id, "Getting git incoming changes", function(loadScopedCommitsList) {
+													dojo.place(document.createTextNode("Getting git incoming changes..."), "explorer-tree", "only");
+													gitService.getLog(remoteJsonData.HeadLocation, remoteJsonData.Id).then(function(loadScopedCommitsList) {
 														explorer.renderer.setIncomingCommits(loadScopedCommitsList.Children);
 														explorer.loadCommitsList(remoteJsonData.CommitLocation + "?page=1", remoteJsonData, true);
 													});
@@ -1032,7 +1029,9 @@ var exports = {};
 			spriteClass: "gitCommandSprite",
 			callback: function(data) {
 				var item = data.items;
-				serviceRegistry.getService("orion.git.provider").doRebase(item.HeadLocation, item.Name, "BEGIN", function(jsonData){
+				var progressService = serviceRegistry.getService("orion.page.message");
+				progressService.showWhile(serviceRegistry.getService("orion.git.provider").doRebase(item.HeadLocation, item.Name, "BEGIN"),
+				item.Name ? "Rebase on top of " + item.Name: "Rebase").then(function(jsonData){
 					var display = [];
 					var statusLocation = item.HeadLocation.replace("commit/HEAD", "status");
 
@@ -1143,10 +1142,10 @@ var exports = {};
 						
 						var gitService = serviceRegistry.getService("orion.git.provider");
 						if (item.RemoteLocation.length == 1 && item.RemoteLocation[0].Children.length == 1) {
-							gitService.doPush(item.RemoteLocation[0].Children[0].Location, "HEAD", true, false, null,
-									"Pushing remote: " + path,
+							var progressService = serviceRegistry.getService("orion.page.message");
+							progressService.showWhile(gitService.doPush(item.RemoteLocation[0].Children[0].Location, "HEAD", true, false,
 									options.gitSshUsername, options.gitSshPassword,
-									options.knownHosts, options.gitPrivateKey, options.gitPassphrase).then(
+									options.knownHosts, options.gitPrivateKey, options.gitPassphrase), "Pushing remote: " + path).then(
 								function(jsonData){
 									exports.handleProgressServiceResponse2(jsonData, serviceRegistry, 
 										function() {
@@ -1185,10 +1184,10 @@ var exports = {};
 								hideNewBranch: true,
 								func: dojo.hitch(this, 
 									function(targetBranch, remote) {
-										gitService.doPush(targetBranch.Location, "HEAD", true, true, null,
-												"Pushing remote: " + remote.Name,
+										var progressService = serviceRegistry.getService("orion.page.message");
+										progressService.showWhile(gitService.doPush(targetBranch.Location, "HEAD", true, true,
 												options.gitSshUsername, options.gitSshPassword, options.knownHosts,
-												options.gitPrivateKey, options.gitPassphrase).then(
+												options.gitPrivateKey, options.gitPassphrase), "Pushing remote: " + remote.Name).then(
 											function(jsonData){
 												exports.handleProgressServiceResponse2(jsonData, serviceRegistry, 
 													function() {
@@ -1278,10 +1277,10 @@ var exports = {};
 						
 						var gitService = serviceRegistry.getService("orion.git.provider");
 						if (item.RemoteLocation.length == 1 && item.RemoteLocation[0].Children.length == 1) {
-							gitService.doPush(item.RemoteLocation[0].Children[0].Location, "HEAD", true, true, null,
-									"Pushing remote: " + path,
+									var progressService = serviceRegistry.getService("orion.page.message");
+									progressService.showWhile(gitService.doPush(item.RemoteLocation[0].Children[0].Location, "HEAD", true, true,
 									options.gitSshUsername, options.gitSshPassword,
-									options.knownHosts, options.gitPrivateKey, options.gitPassphrase).then(
+									options.knownHosts, options.gitPrivateKey, options.gitPassphrase), "Pushing remote: " + path).then(
 								function(jsonData){
 									exports.handleProgressServiceResponse2(jsonData, serviceRegistry, 
 										function() {
@@ -1320,10 +1319,10 @@ var exports = {};
 								hideNewBranch: true,
 								func: dojo.hitch(this, 
 									function(targetBranch, remote) {
-										gitService.doPush(targetBranch.Location, "HEAD", true, true, null,
-												"Pushing remote: " + remote.Name,
+										var progressService = serviceRegistry.getService("orion.page.message");
+										progressService.showWhile(gitService.doPush(targetBranch.Location, "HEAD", true, true,
 												options.gitSshUsername, options.gitSshPassword, options.knownHosts,
-												options.gitPrivateKey, options.gitPassphrase).then(
+												options.gitPrivateKey, options.gitPassphrase), "Pushing remote: " + remote.Name).then(
 											function(jsonData){
 												exports.handleProgressServiceResponse2(jsonData, serviceRegistry, 
 													function() {
@@ -1426,23 +1425,15 @@ var exports = {};
 					cloneLocation = obj.JsonData.CloneLocation;
 				}
 				var gitService = serviceRegistry.getService("orion.git.provider");
-				dojo.xhrGet({
-					url : cloneLocation,
-					headers : {
-						"Orion-Version" : "1"
-					},
-					handleAs : "json",
-					timeout : 5000,
-					load : function(clone, secondArg) {
-						gitService.getGitClone(clone.Children[0].BranchLocation, function(branches){
-							dojo.forEach(branches.Children, function(branch, i) {
-								if (branch.Current == true){
-									clientDeferred.callback(require.toUrl("git/git-log.html") + "#" + branch.CommitLocation + "?page=1");
-									return;
-								}
-							});
-						});
-					}
+				gitService.getGitClone(cloneLocation).then(function(clone, secondArg) {
+					gitService.getGitBranch(clone.Children[0].BranchLocation).then(function(branches){
+						dojo.forEach(branches.Children, function(branch, i) {
+							if (branch.Current == true){
+								clientDeferred.callback(require.toUrl("git/git-log.html") + "#" + branch.CommitLocation + "?page=1");
+								return;
+							}
+						}, displayErrorOnStatus);
+					}, displayErrorOnStatus);
 				});
 				return clientDeferred;
 			},
@@ -1511,8 +1502,7 @@ var exports = {};
 						"All unstaged and staged changes will be discarded and cannot be recovered. Are you sure?")){
 					var service = serviceRegistry.getService("orion.git.provider");
 					var progressService = serviceRegistry.getService("orion.page.message");
-					progressService.setProgressMessage("Resetting index...");
-					service.resetIndex(item.IndexLocation, item.Name).then(
+					progressService.showWhile(service.resetIndex(item.IndexLocation, item.Name), "Resetting index...").then(
 						function(result){
 							var display = {};
 							display.Severity = "Info";
@@ -1603,7 +1593,7 @@ var exports = {};
 				var path = dojo.hash();
 				var service = serviceRegistry.getService("orion.git.provider");
 				var headLocation = item.Location.replace(item.Name, "HEAD");
-				service.doCherryPick(headLocation, item.Name, function(jsonData) {
+				service.doCherryPick(headLocation, item.Name).then(function(jsonData) {
 					var display = [];
 
 					// TODO we should not craft locations in the
@@ -1619,30 +1609,19 @@ var exports = {};
 
 							if (explorer.parentId === "explorer-tree") {
 								// refresh commit list
-								dojo.xhrGet({
-									url: path,
-									headers: {
-										"Orion-Version": "1"
-									},
-									handleAs: "json",
-									timeout: 5000,
-									load: function(jsonData, secondArg) {
-										return jsonData;
-									},
-									error: function(error, ioArgs) {
-										console.error("HTTP status code: ", ioArgs.xhr.status);
-									}
-								}).then(function(jsonData) {
+								service.doGitLog(path).then(function(jsonData) {
 									if (jsonData.HeadLocation) {
 										// log view for remote
-										service.getLog(jsonData.HeadLocation, jsonData.Id, "Getting git incoming changes", function(scopedCommitsJsonData, secondArg) {
+										dojo.place(document.createTextNode("Getting git incoming changes..."), "explorer-tree", "only");
+										service.getLog(jsonData.HeadLocation, jsonData.Id).then(function(scopedCommitsJsonData, secondArg) {
 												explorer.renderer.setIncomingCommits(scopedCommitsJsonData.Children);
 												explorer.loadCommitsList(jsonData.CommitLocation + "?page=1", jsonData, true);
 										});
 									} else {
 										// log view for branch /
 										// all branches
-										service.getLog(path, "HEAD", "Getting git outgoing changes", function(scopedCommitsJsonData, secondArg) {
+										dojo.place(document.createTextNode("Getting git incoming changes..."), "explorer-tree", "only");
+										service.getLog(path, "HEAD").then(function(scopedCommitsJsonData, secondArg) {
 												explorer.renderer.setOutgoingCommits(scopedCommitsJsonData.Children);
 												explorer.loadCommitsList(path, jsonData, true);
 										});
@@ -1717,39 +1696,18 @@ var exports = {};
 				var gitService = serviceRegistry.getService("orion.git.provider");
 				exports.getDefaultSshOptions(serviceRegistry).then(function(options) {
 					var func = arguments.callee;
-					gitService.doFetch(path, false, null,
+					var statusService = serviceRegistry.getService("orion.page.message");
+						statusService.showWhile(gitService.doFetch(path, false,
 							options.gitSshUsername,
 							options.gitSshPassword,
 							options.knownHosts,
 							options.gitPrivateKey,
-							options.gitPassphrase).then(function(jsonData, secondArg) {
+							options.gitPassphrase), "Fetching remote: " + path).then(function(jsonData, secondArg) {
 						exports.handleProgressServiceResponse(jsonData, options, serviceRegistry, function(jsonData) {
-							dojo.xhrGet({
-								url: path,
-								headers: {
-									"Orion-Version": "1"
-								},
-								postData: dojo.toJson({
-									"GitSshUsername": options.gitSshUsername,
-									"GitSshPassword": options.gitSshPassword,
-									"GitSshPrivateKey": options.gitPrivateKey,
-									"GitSshPassphrase": options.gitPassphrase,
-									"GitSshKnownHost": options.knownHosts
-								}),
-								handleAs: "json",
-								timeout: 5000,
-								load: function(jsonData, secondArg) {
-									return jsonData;
-								},
-								error: function(error, ioArgs) {
-									console.error("HTTP status code: ", ioArgs.xhr.status);
-								}
-							}).then(function(remoteJsonData) {
-								if (true/*
-										 * explorer.parentId ===
-										 * "explorer-tree"
-										 */)
-									gitService.getLog(remoteJsonData.HeadLocation, remoteJsonData.Id, "Getting git incoming changes", function(scopedCommitsJsonData) {
+							gitService.getGitRemote(path).then(function(remoteJsonData) {
+									if(navigator._gitCommitNavigatorRem.parentId)
+										dojo.place(document.createTextNode("Getting git incoming changes..."), navigator._gitCommitNavigatorRem.parentId, "only");
+									gitService.getLog(remoteJsonData.HeadLocation, remoteJsonData.Id).then(function(scopedCommitsJsonData) {
 											navigator._gitCommitNavigatorRem.renderer.setIncomingCommits(scopedCommitsJsonData.Children);
 											navigator._gitCommitNavigatorRem.loadCommitsList(remoteJsonData.CommitLocation + "?page=1&pageSize=5", remoteJsonData, true);
 									});
@@ -1839,11 +1797,10 @@ var exports = {};
 				if(item.RemoteLocation.length==1 && item.RemoteLocation[0].Children.length==1){
 					exports.getDefaultSshOptions(serviceRegistry).then(function(options){
 						var func = arguments.callee;
-
-						gitService.doPush(item.RemoteLocation[0].Children[0].Location, "HEAD", true, false, null,
-								"Pushing remote: " + path,
+						var progressService = serviceRegistry.getService("orion.page.message");
+						progressService.showWhile(gitService.doPush(item.RemoteLocation[0].Children[0].Location, "HEAD", true, false,
 								options.gitSshUsername, options.gitSshPassword, options.knownHosts,
-								options.gitPrivateKey, options.gitPassphrase).then(function(remoteJsonData){
+								options.gitPrivateKey, options.gitPassphrase), "Pushing remote: " + path).then(function(remoteJsonData){
 							exports.handleProgressServiceResponse(remoteJsonData, options, serviceRegistry,
 								function(jsonData){
 									if (!jsonData || !jsonData.HttpCode){
@@ -1868,10 +1825,10 @@ var exports = {};
 						func: dojo.hitch(this, function(targetBranch, remote) {
 							exports.getDefaultSshOptions(serviceRegistry).then(function(options){
 								var func = arguments.callee;
-								gitService.doPush(targetBranch.Location, "HEAD", true, false, null,
-										"Pushing remote: " + remote,
+								var progressService = serviceRegistry.getService("orion.page.message");
+								progressService.showWhile(gitService.doPush(targetBranch.Location, "HEAD", true, false,
 										options.gitSshUsername, options.gitSshPassword, options.knownHosts,
-										options.gitPrivateKey, options.gitPassphrase).then(function(remoteJsonData){
+										options.gitPrivateKey, options.gitPassphrase), "Pushing remote: " + remote).then(function(remoteJsonData){
 								exports.handleProgressServiceResponse(remoteJsonData, options, serviceRegistry,
 									function(jsonData){
 										if (!jsonData || !jsonData.HttpCode){
@@ -2018,8 +1975,9 @@ var exports = {};
 				var cloneFunction = function(gitUrl, path, name) {
 					exports.getDefaultSshOptions(serviceRegistry).then(function(options) {
 						var func = arguments.callee;
-						gitService.cloneGitRepository(name, gitUrl, path, explorer.defaultPath, options.gitSshUsername, options.gitSshPassword, options.knownHosts,
-								options.gitPrivateKey, options.gitPassphrase).then(function(jsonData, secondArg) {
+						serviceRegistry.getService("orion.page.message").showWhile(gitService.cloneGitRepository(name, gitUrl, path, explorer.defaultPath, options.gitSshUsername, options.gitSshPassword, options.knownHosts,
+								options.gitPrivateKey, options.gitPassphrase),
+								"Cloning repository: " + gitUrl).then(function(jsonData, secondArg) {
 							exports.handleProgressServiceResponse(jsonData, options, serviceRegistry, function(jsonData) {
 								if (explorer.redisplayClonesList) {
 									dojo.hitch(explorer, explorer.redisplayClonesList)();
@@ -2063,7 +2021,8 @@ var exports = {};
 				var initRepositoryFunction = function(gitUrl, path, name) {
 					exports.getDefaultSshOptions(serviceRegistry).then(function(options){
 						var func = arguments.callee;
-						gitService.cloneGitRepository(name, gitUrl, path, explorer.defaultPath).then(function(jsonData, secondArg){
+						serviceRegistry.getService("orion.page.message").showWhile(gitService.cloneGitRepository(name, gitUrl, path, explorer.defaultPath),
+								"Initializing repository: " + name).then(function(jsonData, secondArg){
 							exports.handleProgressServiceResponse(jsonData, options, serviceRegistry, function(jsonData){
 								if(explorer.redisplayClonesList)
 									dojo.hitch(explorer, explorer.redisplayClonesList)();
@@ -2136,7 +2095,7 @@ var exports = {};
 									dojo.hitch(explorer, explorer.redisplayClonesList)();
 								}
 							},
-							this.displayErrorOnStatus);
+							displayErrorOnStatus);
 				}
 				
 			}
@@ -2239,42 +2198,6 @@ var exports = {};
 			}
 		});
 		commandService.addCommand(openCommitCommand);
-
-		var mapToGithubCommand = new mCommands.Command({
-			name : "Show in GitHub",
-			tooltip: "Show this repository at GitHub",
-			id : "orion.git.gotoGithub",
-			hrefCallback : function(data) {
-				//url format should include github.com/username/reponame.git or github.com:username/reponame.git
-				var url = /github\.com.*\.git/.exec(data.items.GitUrl)[0];
-				//convert : to / if needed
-				url = url.replace(':', '/');
-				return "https://" + url.substring(0, url.length-4);
-			},
-			visibleWhen : function(item) {
-				//url format should include github.com/username/reponame.git or github.com:username/reponame.git
-				return item.GitUrl && /github\.com.*\.git/.exec(item.GitUrl);
-			}
-		});
-		commandService.addCommand(mapToGithubCommand);
-
-		var mapToEclipseOrgCommand = new mCommands.Command({
-			name : "Show in eclipse.org",
-			tooltip: "Show this repository at eclipse.org",
-			id : "orion.git.gotoEclipseGit",
-			hrefCallback : function(data) {
-				var item = data.items;
-				var token = "git.eclipse.org/gitroot";
-				var found = item.GitUrl.indexOf(token);
-				if (found > -1) {
-					return "http://git.eclipse.org/c" + item.GitUrl.substr(found+token.length, item.GitUrl.length);
-				}
-			},
-			visibleWhen : function(item) {
-				return item.GitUrl && item.GitUrl.indexOf("git.eclipse.org/gitroot") > -1;
-			}
-		});
-		commandService.addCommand(mapToEclipseOrgCommand);
 	};
 }());
 return exports;	

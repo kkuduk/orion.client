@@ -26,10 +26,10 @@ exports.DiffTreeNavigator = (function() {
 	 * @param {list} firstLevelChildren The first level children of the tree root, each item has children and parent property recursively.
 	 * @param {Object} options The options object which provides iterate patterns and all call back functions when iteration happens.
 	 */
-	function DiffTreeNavigator(oldEditor, newEditor, oldDiffBlockFeeder, newDiffBlockFeeder, charDiff) {
+	function DiffTreeNavigator(charOrWordDiff, oldEditor, newEditor, oldDiffBlockFeeder, newDiffBlockFeeder, curveRuler) {
 		this._root = {type: "root", children: []};
-		this._charDiff = charDiff;
-		this.initEditor(oldEditor, newEditor, oldDiffBlockFeeder, newDiffBlockFeeder);
+		this._initialized = false;
+		this.initAll(charOrWordDiff, oldEditor, newEditor, oldDiffBlockFeeder, newDiffBlockFeeder, curveRuler);
 	}
 	
 	/**
@@ -207,15 +207,28 @@ exports.DiffTreeNavigator = (function() {
 	
 	DiffTreeNavigator.prototype = /** @lends orion.DiffTreeNavigator.DiffTreeNavigator.prototype */ {
 		
-		initEditor: function(oldEditor, newEditor, oldDiffBlockFeeder, newDiffBlockFeeder){
+		initAll: function(charOrWordDiff, oldEditor, newEditor, oldDiffBlockFeeder, newDiffBlockFeeder, overviewRuler, curveRuler){
+			if(!charOrWordDiff){
+				this._charOrWordDiff = "word";
+			} else {
+				this._charOrWordDiff = charOrWordDiff;
+			}
+			if(oldEditor){
+				this._initialized = true;
+			}
 			this.editorWrapper = [{editor: oldEditor, diffFeeder: oldDiffBlockFeeder},
 			                      {editor: newEditor, diffFeeder: newDiffBlockFeeder}];
+			this._curveRuler = curveRuler;
+			this._overviewRuler = overviewRuler;
+			if(this._overviewRuler){
+				this._overviewRuler.setDiffNavigator(this);
+			}
 		},
 			
 		initMapper: function(mapper){
 			if(mapper){
 				for(var i = 0; i < this.editorWrapper.length; i++){
-					this.editorWrapper[i].diffFeeder.init(this.editorWrapper[i].getTextView().getModel(), mapper);
+					this.editorWrapper[i].diffFeeder.init(this.editorWrapper[i].editor.getTextView().getModel(), mapper);
 				}
 			}
 		},
@@ -301,15 +314,20 @@ exports.DiffTreeNavigator = (function() {
 			this.updateCurrentAnnotation(true);
 		},
 		
-		gotoBlock: function(blockIndex){
+		gotoBlock: function(blockIndex, changeIndex){
 			if(!this.iterator){
 				return;
 			}
 			if(blockIndex < 0 || blockIndex >= this._root.children.length || this._root.children.length === 0){
 				blockIndex = 0;
 			}
-			this.iterator.setCursor(this._root.children[blockIndex]);
+			if(changeIndex !== undefined && changeIndex >= 0 && this._root.children[blockIndex].children && changeIndex < this._root.children[blockIndex].children.length){
+				this.iterator.setCursor(this._root.children[blockIndex].children[changeIndex]);
+			} else {
+				this.iterator.setCursor(this._root.children[blockIndex]);
+			}
 			this.updateCurrentAnnotation(false);
+			this._positionDiffBlock();
 		},
 		
 		_hitDiffAnnotation: function(wrapperIndex, caretPosition, textView){
@@ -358,6 +376,18 @@ exports.DiffTreeNavigator = (function() {
 				return cursor.index;
 			} else {
 				return cursor.parent.index;
+			}
+		},
+		
+		getCurrentPosition: function(){
+			if(!this.iterator){
+				return {};
+			}
+			var cursor = this.iterator.cursor();
+			if(cursor.type === "block"){
+				return {block: cursor.index+1};
+			} else {
+				return {block: cursor.parent.index+1, change: cursor.index+1};
 			}
 		},
 		
@@ -439,7 +469,7 @@ exports.DiffTreeNavigator = (function() {
 			var startOld = 0;
 			var startNew = 0;
 			if(textOld && textNew){
-				charDiffMap = jsDiffAdapter.adaptCharDiff(textOld.text/*old*/, textNew.text/*new*/, true);
+				charDiffMap = jsDiffAdapter.adaptCharDiff(textOld.text, textNew.text, this._charOrWordDiff === "word");
 				startNew = textNew.start;
 				startOld = textOld.start;
 			} else {
@@ -451,7 +481,7 @@ exports.DiffTreeNavigator = (function() {
 			this.generateWordDiffAnnotations(1, newAnnotations, startNew, charDiffMap, 0, 1);
 			var pairAnnotations = [];
 			for(var i = 0; i < oldAnnotations.length; i++){
-				pairAnnotations.push({parent: parentObj, type: "word", oldA: oldAnnotations[i], newA: newAnnotations[i]});
+				pairAnnotations.push({parent: parentObj, index: i, type: "word", oldA: oldAnnotations[i], newA: newAnnotations[i]});
 			} 
 			return pairAnnotations;
 		},
@@ -489,14 +519,89 @@ exports.DiffTreeNavigator = (function() {
 					diffBlockAnnotaionArray.push(annotation);
 				}
 			}
+		},
+		
+		/* Navigation APIs */
+		_updateOverviewRuler: function(){
+			if(this._overviewRuler){
+				var drawLine = this.editorWrapper[0].editor.getTextView().getTopIndex() ;
+				this.editorWrapper[0].editor.getTextView().redrawLines(drawLine , drawLine+  1 , this._overviewRuler);
+			}
+		},
+		
+		_updateCurveRuler: function(){
+			if(this._curveRuler){
+				this._curveRuler.render();
+			}
+		},
+		
+		_setTextViewPosition: function (textView , lineIndex){
+			var lineHeight = textView.getLineHeight();
+			var clientArea = textView.getClientArea();
+			var lines = Math.floor(clientArea.height / lineHeight/3);
+			textView.setTopIndex((lineIndex - lines) > 0 ? lineIndex - lines : 0);
+		},
+
+		_positionDiffBlock: function(){
+			var blockIndex = this.getCurrentBlockIndex();
+			var diffBlocks = this.getFeeder().getDiffBlocks();
+			if(diffBlocks.length === 0)
+				return;
+			this._setTextViewPosition(this.editorWrapper[0].editor.getTextView() , diffBlocks[blockIndex][0]);
+			if(this.editorWrapper[0].editor !== this.editorWrapper[1].editor){
+				var lineIndexL = mCompareUtils.lookUpLineIndex(this.getMapper(), 0, diffBlocks[blockIndex][1]);
+				this._setTextViewPosition(this.editorWrapper[1].editor.getTextView() , lineIndexL);
+			}
+			this._updateOverviewRuler();
+			this._updateCurveRuler();
+		},
+		
+		matchPositionFromOverview: function(lineIndex){
+			if(!this._initialized){
+				return;
+			}
+			var diffblockIndex;
+			if(lineIndex < 0){
+				diffblockIndex = 0;
+			} else {
+				diffblockIndex = mCompareUtils.getAnnotationIndex(this.getFeeder().getDiffBlocks(), lineIndex);
+			}
+			this.gotoBlock(diffblockIndex);
+		},
+		
+		gotoDiff: function(caretPosition, textView){
+			if(this.gotoChange(caretPosition, textView)){
+				this._updateOverviewRuler();
+				this._updateCurveRuler();
+			}
+		},
+
+		nextDiff: function(){
+			this.iterateOnBlock(true, true);
+			this._positionDiffBlock();
+		},
+		
+		prevDiff: function(){
+			this.iterateOnBlock(false, true);
+			this._positionDiffBlock();
+		},
+		
+		nextChange: function(){
+			this.iterateOnChange(true);
+			this._positionDiffBlock();
+		},
+		
+		prevChange: function(){
+			this.iterateOnChange(false);
+			this._positionDiffBlock();
 		}
 	};
 	return DiffTreeNavigator;
 }());
 
-exports.TwoWayDiffBlockFeeder = (function() {
+exports.DiffBlockFeeder = (function() {
 	/**
-	 * Creates a new diff block feeder of one side of the two way compare widget.
+	 * Creates a new generic diff block feeder
 	 * Each item in the feeder is represented by a pair of number [lineIndexOfTheTextModel, correspondingMapperIndex]. 
 	 *
 	 * @name orion.DiffTreeNavigator.TwoWayDiffBlockFeeder
@@ -505,39 +610,10 @@ exports.TwoWayDiffBlockFeeder = (function() {
 	 * @param {array} The mapper generated from the unified diff.
 	 * @param {integer} The column index where the line index can be calculated.
 	 */
-	function TwoWayDiffBlockFeeder(model, mapper, mapperColumnIndex) {
-	    this._mapperColumnIndex = mapperColumnIndex;
-	    this.init(model, mapper);
+	function DiffBlockFeeder() {
 	}
 	
-	TwoWayDiffBlockFeeder.prototype = /** @lends orion.DiffTreeNavigator.TwoWayDiffBlockFeeder.prototype */ {
-		
-		init: function(model, mapper){
-		    this._textModel = model;
-			this._initing = true;
-			this._diffBlocks = undefined;
-			if(mapper){
-				this._mapper = mapper;
-				this._diffBlocks = [];
-				var curLineindex = 0;//zero based
-				for (var i = 0 ; i < this._mapper.length ; i++){
-					if((this._mapper[i][2] !== 0)){
-						this._diffBlocks.push([curLineindex , i]);
-					}
-					curLineindex += this._mapper[i][this._mapperColumnIndex];
-				}
-			}
-		},
-		
-		getBlockAnnoTypes: function(result){
-			if(this._mapperColumnIndex === 0){
-				result.push({type: "block", normal: DiffAnnoTypes.ANNO_DIFF_ADDED_BLOCK, current: DiffAnnoTypes.ANNO_DIFF_CURRENT_ADDED_BLOCK, list: []});
-			} else {
-				result.push({type: "block", normal: DiffAnnoTypes.ANNO_DIFF_DELETED_BLOCK, current: DiffAnnoTypes.ANNO_DIFF_CURRENT_DELETED_BLOCK, list: []});
-			}
-			result.push({type: "block", normal: DiffAnnoTypes.ANNO_DIFF_BLOCK_TOPONLY, current: DiffAnnoTypes.ANNO_DIFF_CURRENT_BLOCK_TOPONLY, list: []});
-			result.push({type: "block", normal: DiffAnnoTypes.ANNO_DIFF_BLOCK_CONFLICT, current: DiffAnnoTypes.ANNO_DIFF_CURRENT_BLOCK_CONFLICT, list: []});
-		},
+	DiffBlockFeeder.prototype = /** @lends orion.DiffTreeNavigator.TwoWayDiffBlockFeeder.prototype */ {
 		
 		getWordAnnoTypes: function(result){
 			if(this._mapperColumnIndex === 0){
@@ -551,16 +627,20 @@ exports.TwoWayDiffBlockFeeder = (function() {
 			result.push({type: "word", current: DiffAnnoTypes.ANNO_DIFF_EMPTY_ADDED_WORD_RIGHT});
 		},
  
-		getCurrentBlockAnnoType: function(diffBlockIndex){
-			var mapperIndex = this._diffBlocks[diffBlockIndex][1];
-			if(this._mapper[mapperIndex][this._mapperColumnIndex] === 0){
-				return {normal: DiffAnnoTypes.ANNO_DIFF_BLOCK_TOPONLY, current: DiffAnnoTypes.ANNO_DIFF_CURRENT_BLOCK_TOPONLY};
-			} else if(mCompareUtils.isMapperConflict(this.getMapper(), mapperIndex)){
-				return {normal: DiffAnnoTypes.ANNO_DIFF_BLOCK_CONFLICT, current: DiffAnnoTypes.ANNO_DIFF_CURRENT_BLOCK_CONFLICT};
-			} else if(this._mapperColumnIndex === 0){
-				return {type: "block", normal: DiffAnnoTypes.ANNO_DIFF_ADDED_BLOCK, current: DiffAnnoTypes.ANNO_DIFF_CURRENT_ADDED_BLOCK, list: []};
-			} 
-			return {type: "block", normal: DiffAnnoTypes.ANNO_DIFF_DELETED_BLOCK, current: DiffAnnoTypes.ANNO_DIFF_CURRENT_DELETED_BLOCK, list: []};
+		getCurrentWordAnnoType: function(annoPosition, textModel){
+			if(annoPosition.start === annoPosition.end && textModel){
+				if(this._mapperColumnIndex === 0){
+					return {current: this._repositionEmptyWord(annoPosition, textModel), normal: DiffAnnoTypes.ANNO_DIFF_ADDED_WORD};
+				} else {
+					return {current: this._repositionEmptyWord(annoPosition, textModel), normal: DiffAnnoTypes.ANNO_DIFF_DELETED_WORD};
+				}
+			} else {
+				if(this._mapperColumnIndex === 0){
+					return {current: DiffAnnoTypes.ANNO_DIFF_CURRENT_ADDED_WORD, normal: DiffAnnoTypes.ANNO_DIFF_ADDED_WORD};
+				} else {
+					return {current: DiffAnnoTypes.ANNO_DIFF_CURRENT_DELETED_WORD, normal: DiffAnnoTypes.ANNO_DIFF_DELETED_WORD};
+				}
+			}
 		},
 		
 		_repositionEmptyWord: function(annoPosition, textModel){
@@ -587,22 +667,6 @@ exports.TwoWayDiffBlockFeeder = (function() {
 			return this._mapperColumnIndex === 0 ? DiffAnnoTypes.ANNO_DIFF_EMPTY_ADDED_WORD_LEFT : DiffAnnoTypes.ANNO_DIFF_EMPTY_DELETED_WORD_LEFT;
 		},
 		
-		getCurrentWordAnnoType: function(annoPosition, textModel){
-			if(annoPosition.start === annoPosition.end && textModel){
-				if(this._mapperColumnIndex === 0){
-					return {current: this._repositionEmptyWord(annoPosition, textModel), normal: DiffAnnoTypes.ANNO_DIFF_ADDED_WORD};
-				} else {
-					return {current: this._repositionEmptyWord(annoPosition, textModel), normal: DiffAnnoTypes.ANNO_DIFF_DELETED_WORD};
-				}
-			} else {
-				if(this._mapperColumnIndex === 0){
-					return {current: DiffAnnoTypes.ANNO_DIFF_CURRENT_ADDED_WORD, normal: DiffAnnoTypes.ANNO_DIFF_ADDED_WORD};
-				} else {
-					return {current: DiffAnnoTypes.ANNO_DIFF_CURRENT_DELETED_WORD, normal: DiffAnnoTypes.ANNO_DIFF_DELETED_WORD};
-				}
-			}
-		},
-		
 		getMapper: function(){
 			return this._mapper;
 		},
@@ -619,8 +683,12 @@ exports.TwoWayDiffBlockFeeder = (function() {
 			return 	(mapperIndex === -1) ? 0 :this._mapper[mapperIndex][this._mapperColumnIndex];
 		},
 		
-		getAnnotationLineCount: function(){
+		getOverviewLineCount: function(){
 			return 	this._textModel.getLineCount();
+		},
+		
+		getLineNumber: function(lineIndex){
+			return lineIndex;
 		},
 		
 		getCharRange: function(blockIndex){
@@ -644,31 +712,155 @@ exports.TwoWayDiffBlockFeeder = (function() {
 			return {start: charRange.start, text: this._textModel.getText(charRange.start, charRange.end)};
 		},
 
-		//To get the line type from a zero based line index  
-		getLineType: function(lineIndex){
-			var mapItem = mCompareUtils.lookUpMapper(this._mapper , this._mapperColumnIndex , lineIndex);
-			if(mapItem.mapperIndex > -1){
-				if(this._mapper[mapItem.mapperIndex][2] !== 0){
-					var mapperLength = this._mapper[mapItem.mapperIndex][this._mapperColumnIndex];
-					if(mapperLength === 0)
-						return {type:"top-only" , mapperIndex:mapItem.mapperIndex};
-					if(mapperLength === 1)
-						return {type:"oneline" , mapperIndex:mapItem.mapperIndex};
-					if(lineIndex === mapItem.startFrom)
-						return {type:"top" , mapperIndex:mapItem.mapperIndex};
-					if(lineIndex === mapItem.startFrom + mapperLength -1)
-						return {type:"bottom" , mapperIndex:mapItem.mapperIndex};
-					return {type:"middle" , mapperIndex:mapItem.mapperIndex};
-				}
-			}
-			return {type:"unchanged" , mapperIndex:mapItem.mapperIndex};
-		},
-			
 		isMapperEmpty: function(){
 			return this._mapper.length === 0;
 		}
 	};
+	return DiffBlockFeeder;
+}());
+
+exports.TwoWayDiffBlockFeeder = (function() {
+	/**
+	 * Creates a new diff block feeder of one side of the two way compare widget.
+	 * Each item in the feeder is represented by a pair of number [lineIndexOfTheTextModel, correspondingMapperIndex]. 
+	 *
+	 * @name orion.DiffTreeNavigator.TwoWayDiffBlockFeeder
+	 * @class A feeder to feed all the diff blocks based on the line index and mapper index.
+	 * @param {orion.textview.TextModel} The text model of the whole text.
+	 * @param {array} The mapper generated from the unified diff.
+	 * @param {integer} The column index where the line index can be calculated.
+	 */
+	function TwoWayDiffBlockFeeder(model, mapper, mapperColumnIndex) {
+	    this._mapperColumnIndex = mapperColumnIndex;
+	    this.init(model, mapper);
+	}
+	TwoWayDiffBlockFeeder.prototype = new exports.DiffBlockFeeder(); 
+	TwoWayDiffBlockFeeder.prototype.init = function(model, mapper){
+	    this._textModel = model;
+		this._diffBlocks = undefined;
+		if(mapper){
+			this._mapper = mapper;
+			this._diffBlocks = [];
+			var curLineindex = 0;//zero based
+			for (var i = 0 ; i < this._mapper.length ; i++){
+				if((this._mapper[i][2] !== 0)){
+					this._diffBlocks.push([curLineindex , i]);
+				}
+				curLineindex += this._mapper[i][this._mapperColumnIndex];
+			}
+		}
+	};
+	TwoWayDiffBlockFeeder.prototype.getBlockAnnoTypes = function(result){
+		if(this._mapperColumnIndex === 0){
+			result.push({type: "block", normal: DiffAnnoTypes.ANNO_DIFF_ADDED_BLOCK, current: DiffAnnoTypes.ANNO_DIFF_CURRENT_ADDED_BLOCK, list: []});
+		} else {
+			result.push({type: "block", normal: DiffAnnoTypes.ANNO_DIFF_DELETED_BLOCK, current: DiffAnnoTypes.ANNO_DIFF_CURRENT_DELETED_BLOCK, list: []});
+		}
+		result.push({type: "block", normal: DiffAnnoTypes.ANNO_DIFF_BLOCK_TOPONLY, current: DiffAnnoTypes.ANNO_DIFF_CURRENT_BLOCK_TOPONLY, list: []});
+		result.push({type: "block", normal: DiffAnnoTypes.ANNO_DIFF_BLOCK_CONFLICT, current: DiffAnnoTypes.ANNO_DIFF_CURRENT_BLOCK_CONFLICT, list: []});
+	};
+	TwoWayDiffBlockFeeder.prototype.getCurrentBlockAnnoType = function(diffBlockIndex){
+		var mapperIndex = this._diffBlocks[diffBlockIndex][1];
+		if(this._mapper[mapperIndex][this._mapperColumnIndex] === 0){
+			return {normal: DiffAnnoTypes.ANNO_DIFF_BLOCK_TOPONLY, current: DiffAnnoTypes.ANNO_DIFF_CURRENT_BLOCK_TOPONLY};
+		} else if(mCompareUtils.isMapperConflict(this.getMapper(), mapperIndex)){
+			return {normal: DiffAnnoTypes.ANNO_DIFF_BLOCK_CONFLICT, current: DiffAnnoTypes.ANNO_DIFF_CURRENT_BLOCK_CONFLICT};
+		} else if(this._mapperColumnIndex === 0){
+			return {type: "block", normal: DiffAnnoTypes.ANNO_DIFF_ADDED_BLOCK, current: DiffAnnoTypes.ANNO_DIFF_CURRENT_ADDED_BLOCK, list: []};
+		} 
+		return {type: "block", normal: DiffAnnoTypes.ANNO_DIFF_DELETED_BLOCK, current: DiffAnnoTypes.ANNO_DIFF_CURRENT_DELETED_BLOCK, list: []};
+	};
 	return TwoWayDiffBlockFeeder;
+}());
+
+exports.inlineDiffBlockFeeder = (function() {
+	/**
+	 * Creates a new diff block feeder of one side of the two way compare widget.
+	 * Each item in the feeder is represented by a pair of number [lineIndexOfTheTextModel, correspondingMapperIndex]. 
+	 *
+	 * @name orion.DiffTreeNavigator.inlineDiffBlockFeeder
+	 * @class A feeder to feed all the diff blocks based on the line index and mapper index.
+	 * @param {orion.textview.TextModel} The text model of the whole text.
+	 * @param {array} The mapper generated from the unified diff.
+	 * @param {integer} The column index where the line index can be calculated.
+	 */
+	function inlineDiffBlockFeeder(mapper, mapperColumnIndex) {
+	    this._mapperColumnIndex = mapperColumnIndex;
+	    this.init(mapper);
+	}
+	inlineDiffBlockFeeder.prototype = new exports.DiffBlockFeeder(); 
+	inlineDiffBlockFeeder.prototype.setModel = function(model){
+	    this._textModel = model;
+	};
+	inlineDiffBlockFeeder.prototype.init = function( mapper){
+		this._diffBlocks = undefined;
+		if(mapper){
+			this._mapper = mapper;
+			this._diffBlocks = [];
+			this._gapBlocks = [];
+			var curLineindex = 0;//zero based
+			var curGapLineindex = 0;//zero based
+			for (var i = 0 ; i < this._mapper.length ; i++){
+				if((this._mapper[i][2] !== 0)){
+					if(this._mapperColumnIndex === 0){//adding block
+						var startLineIndex = curLineindex + this._mapper[i][1];
+						this._diffBlocks.push([startLineIndex , i]);
+						this._gapBlocks.push([startLineIndex , startLineIndex + this._mapper[i][0], curGapLineindex]);
+					} else {
+						this._diffBlocks.push([curLineindex, i]);
+						this._gapBlocks.push([curLineindex, curLineindex + this._mapper[i][1], curGapLineindex]);
+					}
+					curLineindex += this._mapper[i][0] +  this._mapper[i][1];
+				} else {
+					this._gapBlocks.push([curLineindex, curLineindex + this._mapper[i][this._mapperColumnIndex], curGapLineindex]);
+					curLineindex += this._mapper[i][this._mapperColumnIndex];
+				}
+				curGapLineindex += this._mapper[i][this._mapperColumnIndex];
+			}
+		}
+	};
+	inlineDiffBlockFeeder.prototype.getBlockAnnoTypes = function(result){
+		if(this._mapperColumnIndex === 0){
+			result.push({type: "block", normal: DiffAnnoTypes.ANNO_DIFF_ADDED_BLOCK, current: DiffAnnoTypes.ANNO_DIFF_CURRENT_ADDED_BLOCK, list: []});
+		} else {
+			result.push({type: "block", normal: DiffAnnoTypes.ANNO_DIFF_DELETED_BLOCK, current: DiffAnnoTypes.ANNO_DIFF_CURRENT_DELETED_BLOCK, list: []});
+		}
+		//We do not want to show the empty line annotation i ninline compare
+		//result.push({type: "block", normal: DiffAnnoTypes.ANNO_DIFF_BLOCK_TOPONLY, current: DiffAnnoTypes.ANNO_DIFF_CURRENT_BLOCK_TOPONLY, list: []});
+		result.push({type: "block", normal: DiffAnnoTypes.ANNO_DIFF_BLOCK_CONFLICT, current: DiffAnnoTypes.ANNO_DIFF_CURRENT_BLOCK_CONFLICT, list: []});
+	};
+	inlineDiffBlockFeeder.prototype.getCurrentBlockAnnoType = function(diffBlockIndex){
+		var mapperIndex = this._diffBlocks[diffBlockIndex][1];
+		if(this._mapper[mapperIndex][this._mapperColumnIndex] === 0){
+			//We do not want to show the empty line annotation i ninline compare
+			//return {normal: DiffAnnoTypes.ANNO_DIFF_BLOCK_TOPONLY, current: DiffAnnoTypes.ANNO_DIFF_CURRENT_BLOCK_TOPONLY};
+			return({current: DiffAnnoTypes.ANNO_DIFF_CURRENT_ADDED_WORD, normal: DiffAnnoTypes.ANNO_DIFF_ADDED_WORD});
+		} else if(mCompareUtils.isMapperConflict(this.getMapper(), mapperIndex)){
+			return {normal: DiffAnnoTypes.ANNO_DIFF_BLOCK_CONFLICT, current: DiffAnnoTypes.ANNO_DIFF_CURRENT_BLOCK_CONFLICT};
+		} else if(this._mapperColumnIndex === 0){
+			return {type: "block", normal: DiffAnnoTypes.ANNO_DIFF_ADDED_BLOCK, current: DiffAnnoTypes.ANNO_DIFF_CURRENT_ADDED_BLOCK, list: []};
+		} 
+		return {type: "block", normal: DiffAnnoTypes.ANNO_DIFF_DELETED_BLOCK, current: DiffAnnoTypes.ANNO_DIFF_CURRENT_DELETED_BLOCK, list: []};
+	};
+	inlineDiffBlockFeeder.prototype.getDiffBlockH = function(diffBlockIndex){
+		if(!this._diffBlocks){
+			return -1;
+		}
+		var mapperIndex = this._diffBlocks[diffBlockIndex][1];
+		return 	this._mapper[mapperIndex][0] + this._mapper[mapperIndex][1];
+	};
+	inlineDiffBlockFeeder.prototype.getLineNumber = function(lineIndex){
+		for(var i = 0; i < this._gapBlocks.length; i++){
+			if(this._gapBlocks[i][0] !== this._gapBlocks[i][1]){
+				if(lineIndex >= this._gapBlocks[i][0] && lineIndex < this._gapBlocks[i][1]){
+					var delta = lineIndex - this._gapBlocks[i][0];
+					return delta + this._gapBlocks[i][2];
+				}
+			}
+		}
+		return -1;
+	};
+	return inlineDiffBlockFeeder;
 }());
 
 return exports;
