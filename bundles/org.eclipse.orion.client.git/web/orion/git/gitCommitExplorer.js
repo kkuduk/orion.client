@@ -260,15 +260,15 @@ define(['i18n!git/nls/gitmessages', 'dojo', 'orion/explorer', 'orion/util', 'ori
 
 			dojo.place( content, tableNode );
 			
-			for(var i=0; i<diffs.length; i++){
-				this.renderDiff(diffs[i], i);
+			if(diffs.length > 0){
+				this.renderDiff(diffs, 0);
 			}
 		};
 
-		GitCommitExplorer.prototype.renderDiff = function(diff, index){
+		GitCommitExplorer.prototype.renderDiff = function(diffs, index){
 			
 			// add diff details
-			
+			var diff = diffs[index];
 			var diffDetailsItem = dojo.create( "div", { "class":"sectionTableItem" }, dojo.byId("diffNode") );
 			var diffDetailsHorizontalBox = dojo.create( "div", null, diffDetailsItem );
 
@@ -279,16 +279,16 @@ define(['i18n!git/nls/gitmessages', 'dojo', 'orion/explorer', 'orion/util', 'ori
 			}	
 			dojo.create( "span", { "class":"gitMainDescription", innerHTML: diffPath + " (" + diff.ChangeType + ") " }, detailsView );
 
-			var actionsArea = dojo.create( "div", {"id":"diffActionsArea_" + index, "class":"sectionTableItemActions"}, diffDetailsHorizontalBox );
+			var compareActionsArea = dojo.create( "div", {"id":"compareActionsArea_" + index, "class":"sectionTableItemActions"}, diffDetailsHorizontalBox, "last" );
+			var actionsArea = dojo.create( "div", {"id":"diffActionsArea_" + index, "class":"sectionTableItemActions"}, diffDetailsHorizontalBox,"last" );
 			this.commandService.renderCommands(this.actionScopeId, actionsArea, diff, this, "tool", false);	
-			var compareActionsArea = dojo.create( "div", {"id":"compareActionsArea_" + index, "class":"sectionTableItemActions"}, diffDetailsHorizontalBox );
 			
 			// add inline compare view
 			
 			var diffItem = dojo.create( "div", { "class":"sectionTableItem" }, dojo.byId("diffNode") );
 			var diffHorizontalBox = dojo.create( "div", null, diffItem );
 			
-			dojo.create( "div", { "id":"diffArea_" + index, "style":"height:420px;border:1px solid lightgray;"}, diffHorizontalBox );
+			dojo.create( "div", { "id":"diffArea_" + index, "style":"height:420px;border:1px solid lightgray;"}, diffHorizontalBox);
 
 			var diffProvider = new mCompareContainer.DefaultDiffProvider(this.registry);
 			
@@ -301,7 +301,12 @@ define(['i18n!git/nls/gitmessages', 'dojo', 'orion/explorer', 'orion/util', 'ori
 			var inlineCompareContainer = new mCompareContainer.InlineCompareContainer(this.registry, "diffArea_" + index, diffOptions);
 			inlineCompareContainer.setOptions({hasConflicts: false, complexURL: diff.DiffLocation});
 			inlineCompareContainer.setDiffTitle("Compare");
-			inlineCompareContainer.startup();
+			var that = this;
+			inlineCompareContainer.startup(false, function(){
+				if(index < (diffs.length -1 )){
+					that.renderDiff(diffs, index+1);
+				}
+			});
 		};
 		
 		// Git tags
