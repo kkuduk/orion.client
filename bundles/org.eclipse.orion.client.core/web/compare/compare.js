@@ -57,11 +57,11 @@ define(['dojo', 'orion/bootstrap', 'orion/status', 'orion/progress', 'orion/oper
 					hasConflicts: conflciting,
 					diffProvider: diffProvider,
 					complexURL: diffParams.complexURL,
-					block: diffParams.block,
-					change: diffParams.change
+					blockNumber: diffParams.block,
+					changeNumber: diffParams.change
 				};
 				
-				var twoWayCompareContainer = new mCompareContainer.TwoWayCompareContainer(serviceRegistry, uiFactory, options);
+				var twoWayCompareContainer = new mCompareContainer.TwoWayCompareContainer(serviceRegistry, "compareContainer", uiFactory, options);
 				twoWayCompareContainer.startup();
 
 				// every time the user manually changes the hash, we need to load the diff.
@@ -70,7 +70,7 @@ define(['dojo', 'orion/bootstrap', 'orion/status', 'orion/progress', 'orion/oper
 					options.complexURL = diffParams.complexURL;
 					options.block = diffParams.block;
 					options.change = diffParams.change;
-					twoWayCompareContainer = new mCompareContainer.TwoWayCompareContainer(serviceRegistry, uiFactory, options);
+					twoWayCompareContainer = new mCompareContainer.TwoWayCompareContainer(serviceRegistry, "compareContainer", uiFactory, options);
 					twoWayCompareContainer.startup();
 				});
 			});
