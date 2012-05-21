@@ -32,6 +32,12 @@
 	cursor: pointer;
 	display: inline-block;
 	padding: 1px;
+	-webkit-touch-callout: none;
+	-webkit-user-select: none;
+	-khtml-user-select: none;
+	-moz-user-select: none;
+	-ms-user-select: none;
+	user-select: none;
 }
 
 .commandImageOver {
@@ -46,27 +52,37 @@
 }
 
 .commandButton {
-	color: #222222;
-	border: 1px solid transparent;
+	color: #777;
+	border: 1px solid #CCC;
 	background-color: transparent;
 	text-align: center;
 	vertical-align: baseline;
     cursor: pointer;
     display: inline-block;
-    padding: 1px;
+    padding: 4px;
+    font-weight:bold;
+    border-radius:3px;
+    line-height: 12px;
+    font-size:7pt;
+	-webkit-touch-callout: none;
+	-webkit-user-select: none;
+	-khtml-user-select: none;
+	-moz-user-select: none;
+	-ms-user-select: none;
+	user-select: none;
 }
 
 .commandButtonOver {
 	background-color: #e6e6e6;
 	border: 1px solid #808080;
-    border-radius: 2px;
 }
 
 .commandMenu {
-    color: #222222;
+    color: #777;
 	display: inline-block;
 	vertical-align: baseline;
 	margin: 0;
+	font-size:7pt;
 }
 
 .commandMenuItem {
@@ -79,6 +95,12 @@
 	display: inline-block;
 	vertical-align: baseline;
 	padding: 2px;  /* other commands have 1px plus a border, so we need 2 */
+	-webkit-touch-callout: none;
+	-webkit-user-select: none;
+	-khtml-user-select: none;
+	-moz-user-select: none;
+	-ms-user-select: none;
+	user-select: none;
 }
 
 .commandSeparator {
@@ -106,8 +128,8 @@
 .imageSprite {
    background-image: url(../images/core_sprites.png);
    display: inline-block;
-   margin: 1px;
    vertical-align: middle;
+   border:none;
 }
 
 .core-sprite-add{ background-position: 0 0; width: 16px; height: 16px; } 
@@ -160,8 +182,8 @@
 .core-sprite-stop{ background-position: -96px -1044px; width: 16px; height: 16px; } 
 .core-sprite-transferin{ background-position: -96px -1110px; width: 16px; height: 16px; } 
 .core-sprite-transferout{ background-position: -96px -1176px; width: 16px; height: 16px; } 
-.core-sprite-twistie_closed{ background-position: -96px -1242px; width: 16px; height: 16px; } 
-.core-sprite-twistie_open{ background-position: -96px -1308px; width: 16px; height: 16px; } 
+.core-sprite-twistie_closed{ background-image:url(../images/closedarrow.png);width: 16px; height: 16px; } 
+.core-sprite-twistie_open{ background-image:url(../images/openarrow.png); width: 16px; height: 16px; } 
 .core-sprite-twistie_partOpen{ background-position: -96px -1374px; width: 16px; height: 16px; } 
 .core-sprite-warning{ background-position: -96px -1440px; width: 16px; height: 16px; } 
 
@@ -173,16 +195,18 @@
 .claro .dijitToggleButton .dijitButtonNode {
   background-color: transparent;
   background-image: none;
-  box-shadow: none;
   border: 1px solid transparent;
-  border-radius: 2px;
-  padding: 1px;
-  color: #808080;
+  box-shadow: none;
+  border-radius: 3px;
+  font-weight: bold;
+  padding: 2px;
+  padding-bottom: 3px;
+  color: #777;
   margin: 0;
 }
 
 .claro .commandMenu .dijitButtonNode {
-  color: #222222;
+  color: #777;
 }
 
 /* button hover */
@@ -206,16 +230,6 @@
 	vertical-align: middle; 
 }
 
-.claro .textless .dijitArrowButtonInner {
-	background-position: 0 -1551px;	
-	width: 16px; height: 16px; 
-	background-image: url(../images/core_sprites.png);
-	display: inline-block; 
-	vertical-align: middle; 
-	margin-left: 2px;
-	margin-right: 2px;
-}
-
 /* menus and menu items */
 
 .claro .dijitMenu {
@@ -225,6 +239,18 @@
 
 .claro .dijitMenuItem {
    outline: none;
+   padding-top:4px;
+}
+
+.claro .dijitMenuSeparatorTop {
+	height: auto;
+	margin-top: 1px;
+	border-bottom: 1px solid #DDD;
+}
+
+.claro .dijitMenuItemLabel {
+	position: relative;
+	padding: 5px;
 }
 
 .claro .dijitMenuActive .dijitMenuItemHover, .claro .dijitMenuActive .dijitMenuItemSelected, .claro .dijitMenuActive .dijitMenuItemActive {

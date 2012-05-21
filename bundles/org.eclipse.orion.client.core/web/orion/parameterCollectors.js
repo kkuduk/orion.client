@@ -105,8 +105,8 @@ define(['require', 'dojo', 'dijit', 'orion/commands', 'orion/util', 'dijit/Menu'
 			this._activeElements = this._findParameterElements(commandNode);
 			if (this._activeElements && this._activeElements.parameterArea && this._activeElements.slideContainer && this._activeElements.parameterContainer) {
 				this._activeElements.onClose = onClose;
-				var focusNode = fillFunction(this._activeElements.parameterArea);
-				var close = dojo.query("#closebox", this._activeElements.parameterArea);
+				var focusNode = fillFunction(this._activeElements.parameterArea, this._activeElements.dismissArea);
+				var close = dojo.query("#closebox", this._activeElements.dismissArea || this._activeElements.parameterArea);
 				if (close.length === 0) {
 					// add the close button if the fill function did not.
 					var dismiss = this._activeElements.dismissArea || this._activeElements.parameterArea;
@@ -146,9 +146,14 @@ define(['require', 'dojo', 'dijit', 'orion/commands', 'orion/util', 'dijit/Menu'
 		
 		_collectAndCall: function(commandInvocation, parent) {
 			dojo.query("input", parent).forEach(function(field) {
-				if (field.type !== "button") {
+				if (field.type === "checkbox") {
+					commandInvocation.parameters.setValue(field.parameterName, field.checked);
+				} else if (field.type !== "button") {
 					commandInvocation.parameters.setValue(field.parameterName, field.value);
 				}
+			});
+			dojo.query("textArea", parent).forEach(function(field) {
+				commandInvocation.parameters.setValue(field.parameterName, field.value);
 			});
 			if (commandInvocation.command.callback) {
 				commandInvocation.command.callback.call(commandInvocation.handler, commandInvocation);
@@ -180,7 +185,7 @@ define(['require', 'dojo', 'dijit', 'orion/commands', 'orion/util', 'dijit/Menu'
 		 * @returns {Function} a function that can fill the specified dom node with parameter collection behavior
 		 */
 		 getFillFunction: function(commandInvocation, closeFunction) {
-			return dojo.hitch(this, function(parameterArea) {
+			return dojo.hitch(this, function(parameterArea, dismissArea) {
 				var first = null;
 				var localClose = dojo.hitch(this, function() {
 					if (closeFunction) {
@@ -199,24 +204,39 @@ define(['require', 'dojo', 'dijit', 'orion/commands', 'orion/util', 'dijit/Menu'
 				});
 				commandInvocation.parameters.forEach(function(parm) {
 					if (parm.label) {
-						dojo.create("label", {innerHTML: parm.label, "for": parm.name + "parameterCollector"}, parameterArea, "last");
+						dojo.create("label", {innerHTML: parm.label, "class": "parameterInput", "for": parm.name + "parameterCollector"}, parameterArea, "last");
 					} 
-					var field = dojo.create("input", {type: parm.type, id: parm.name + "parameterCollector"}, parameterArea, "last");
-					dojo.addClass(field, "parameterInput");
+					var options = {type: parm.type, id: parm.name + "parameterCollector"};
+					var field;
+					if (parm.type === "text" && typeof(parm.lines) === "number" && parm.lines > 1) {
+						options.rows = parm.lines;
+						options.type = "textarea";
+						field = dojo.create("textarea", options, parameterArea, "last");
+					} else if (parm.type === "boolean") {
+						options.type = "checkbox";
+						if (parm.value) {
+							options.checked = true;
+						}
+					} else {
+						if (parm.value) {
+							options.value = parm.value;
+						}
+					}
+					if (!field) {
+						field = dojo.create("input", options, parameterArea, "last");
+					}
 					// we define special classes for some parameter types
-					dojo.addClass(field, "parameterInput"+parm.type);
+					dojo.addClass(field, "parameterInput parameterInput"+options.type);
+					// for fun
 					field.setAttribute("speech", "speech");
 					field.setAttribute("x-webkit-speech", "x-webkit-speech");
 					field.parameterName = parm.name;
 					if (!first) {
 						first = field;
 					}
-					if (parm.value) {
-						field.value = parm.value;
-					}
 					dojo.connect(field, "onkeypress", keyHandler);
 				});
-				var parentDismiss = parameterArea;
+				var parentDismiss = dismissArea || parameterArea;
 				var finish = function (collector) {
 					collector._collectAndCall(commandInvocation, parameterArea);
 					localClose();

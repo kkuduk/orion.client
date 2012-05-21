@@ -12,8 +12,8 @@
 /*global define window */
 /*jslint regexp:false browser:true forin:true*/
 
-define(['require', 'dojo', 'dijit', 'orion/util', 'orion/explorer', 'orion/explorerNavHandler', 'orion/breadcrumbs', 'orion/fileCommands', 'orion/extensionCommands', 'orion/contentTypes', 'dojo/number'],
-		function(require, dojo, dijit, mUtil, mExplorer, mNavHandler, mBreadcrumbs, mFileCommands, mExtensionCommands){
+define(['require', 'dojo', 'dijit', 'orion/util', 'orion/explorer', 'orion/navigationUtils', 'orion/breadcrumbs', 'orion/fileCommands', 'orion/extensionCommands', 'orion/contentTypes', 'dojo/number'],
+		function(require, dojo, dijit, mUtil,  mExplorer, mNavUtils, mBreadcrumbs, mFileCommands, mExtensionCommands){
 
 	/**
 	 * Tree model used by the FileExplorer
@@ -58,7 +58,7 @@ define(['require', 'dojo', 'dijit', 'orion/util', 'orion/explorer', 'orion/explo
 		this.commandService = commandService;
 		this.contentTypeService = contentTypeService;
 		this.openWithCommands = null;
-		this.actionScopeId = "fileFolderCommands";
+		this.actionScopeId = options.actionScopeId;
 		this._init(options);
 		this.target = "_self";
 	}
@@ -74,18 +74,6 @@ define(['require', 'dojo', 'dijit', 'orion/util', 'orion/explorer', 'orion/explo
 		}
 	};
 		
-	//This is an optional function for explorerNavHandler. It provides the div with the "href" attribute.
-	//The explorerNavHandler hooked up by the explorer will check if the href exist as the attribute and react on enter key press.
-	FileRenderer.prototype.getRowActionElement = function(tableRowId){
-		return dojo.byId(tableRowId+"NameColumn");
-	};
-	
-	FileRenderer.prototype.onRowIterate = function(model){
-		if(this.explorer.navHandler){
-			this.explorer.navHandler.cursorOn(model);
-		}
-	};
-	
 	FileRenderer.prototype.setTarget = function(target){
 		this.target = target;
 		
@@ -130,17 +118,18 @@ define(['require', 'dojo', 'dijit', 'orion/util', 'orion/explorer', 'orion/explo
 					}
 			}
 		}
-
+		
 		switch(col_no){
 
 		case 0:
 			var col = document.createElement('td');
-			var span = dojo.create("span", {id: tableRow.id+"Actions"}, col, "only");
+			var span = dojo.create("span", {id: tableRow.id+"MainCol"}, col, "only");
+			dojo.addClass(span, "mainNavColumn");
 			var link;
 			if (item.Directory) {
 				// defined in ExplorerRenderer.  Sets up the expand/collapse behavior
 				this.getExpandImage(tableRow, span);
-				link = dojo.create("a", {className: "navlinkonpage", id: tableRow.id+"NameColumn", href: "#" + item.ChildrenLocation}, span, "last");
+				link = dojo.create("a", {className: "navlinkonpage", id: tableRow.id+"NameLink", href: "#" + item.ChildrenLocation}, span, "last");
 				dojo.place(document.createTextNode(item.Name), link, "last");
 			} else {
 				var i;			
@@ -168,11 +157,15 @@ define(['require', 'dojo', 'dijit', 'orion/util', 'orion/explorer', 'orion/explo
 					href = this.defaultEditor.hrefCallback({items: item});
 				}				
 
-				link = dojo.create("a", {className: "navlink targetSelector", id: tableRow.id+"NameColumn", href: href, target:this.target}, span, "last");
+				link = dojo.create("a", {className: "navlink targetSelector", id: tableRow.id+"NameLink", href: href, target:this.target}, span, "last");
 				addImageToLink(contentType, link);
 				dojo.place(document.createTextNode(item.Name), link, "last");
 			}
-			this.commandService.renderCommands(this.actionScopeId, span, item, this.explorer, "tool");
+			mNavUtils.addNavGrid(this.explorer.getNavDict(), item, link);
+			// render any inline commands that are present.
+			if (this.actionScopeId) {
+				this.commandService.renderCommands(this.actionScopeId, span, item, this.explorer, "tool", null, true);
+			}
 			return col;
 		case 1:
 			var dateColumn = document.createElement('td');
@@ -180,19 +173,6 @@ define(['require', 'dojo', 'dijit', 'orion/util', 'orion/explorer', 'orion/explo
 				var fileDate = new Date(item.LocalTimeStamp);
 				dateColumn.innerHTML = dojo.date.locale.format(fileDate);
 			}
-			var that = this;
-			if(this.onRowIterate){
-				dojo.connect(dateColumn, "onclick", dateColumn, function() {
-					that.onRowIterate(item);
-				});
-				dojo.connect(dateColumn, "onmouseover", dateColumn, function() {
-					dateColumn.style.cursor ="pointer";
-				});
-				dojo.connect(dateColumn, "onmouseout", dateColumn, function() {
-					dateColumn.style.cursor ="default";
-				});
-			}
-
 			return dateColumn;
 		case 2:
 			var sizeColumn = document.createElement('td');
@@ -222,6 +202,7 @@ define(['require', 'dojo', 'dijit', 'orion/util', 'orion/explorer', 'orion/explo
 	 * @param {String} options.breadcrumbId
 	 * @param {String} options.toolbarId
 	 * @param {String} options.selectionToolsId
+	 * @param {String} options.actionsScopeId
 	 */
 	function FileExplorer(options) {
 		this.registry = options.serviceRegistry;
@@ -237,7 +218,8 @@ define(['require', 'dojo', 'dijit', 'orion/util', 'orion/explorer', 'orion/explo
 		this.selectionToolsId = options.selectionToolsId;
 		this.model = null;
 		this.myTree = null;
-		this.renderer = new FileRenderer({checkbox: true, decorateAlternatingLines: false, cachePrefix: "Navigator"}, this, this.commandService, this.contentTypeService);
+		this.checkbox = false;
+		this.renderer = new FileRenderer({actionScopeId: options.actionScopeId, checkbox: false, decorateAlternatingLines: false, cachePrefix: "Navigator"}, this, this.commandService, this.contentTypeService);
 		this.preferences = options.preferences;
 		this.setTarget();
 		this.storageKey = this.preferences.listenForChangedSettings( dojo.hitch( this, 'onStorage' ) );
@@ -247,14 +229,14 @@ define(['require', 'dojo', 'dijit', 'orion/util', 'orion/explorer', 'orion/explo
 	
 	// we have changed an item on the server at the specified parent node
 	FileExplorer.prototype.changedItem = function(parent, forceExpand) {
-		var self = this;
+		var that = this;
 		this.fileClient.fetchChildren(parent.ChildrenLocation).then(function(children) {
 			mUtil.processNavigatorParent(parent, children);
 			//If a key board navigator is hooked up, we need to sync up the model
-			if(self.navHandler){
-				self.navHandler.refreshModel(self.model);
+			if(that.getNavHandler()){
+				//that._initSelModel();
 			}
-			dojo.hitch(self.myTree, self.myTree.refresh)(parent, children, forceExpand);
+			dojo.hitch(that.myTree, that.myTree.refresh)(parent, children, forceExpand);
 		});
 	};
 	
@@ -267,7 +249,7 @@ define(['require', 'dojo', 'dijit', 'orion/util', 'orion/explorer', 'orion/explo
 		var rowId = this.model.getId(item);
 		if (rowId) {
 			// I know this from my renderer below.
-			return dojo.byId(rowId+"NameColumn");
+			return dojo.byId(rowId+"NameLink");
 		}
 	};
 		
@@ -389,14 +371,7 @@ define(['require', 'dojo', 'dijit', 'orion/util', 'orion/explorer', 'orion/explo
 						}
 					}
 					this.model = new Model(this.registry, this.treeRoot, this.fileClient);
-					this.createTree(this.parentId, this.model, { onCollapse: function(model){if(self.navHandler){ 
-																							 self.navHandler.onCollapse(model);}}});
-					//Hook up iterator
-					if(!this.navHandler){
-						this.navHandler = new mNavHandler.ExplorerNavHandler(this);
-					}
-					this.navHandler.refreshModel(this.model);
-					this.navHandler.cursorOn();
+					this.createTree(this.parentId, this.model, {setFocus: true, onCollapse: function(model){if(self.getNavHandler()){self.getNavHandler().onCollapse(model);}}});
 					if (typeof this.onchange === "function") {
 						this.onchange(this.treeRoot);
 					}
@@ -405,7 +380,11 @@ define(['require', 'dojo', 'dijit', 'orion/util', 'orion/explorer', 'orion/explo
 					clearTimeout(progressTimeout);
 					// Show an error message when a problem happens during getting the workspace
 					if (error.status !== null && error.status !== 401){
-						dojo.place(document.createTextNode("Sorry, an error occurred: " + error.message), progress, "only");
+						try {
+							error = JSON.parse(error.responseText);
+						} catch(e) {
+						}
+						dojo.place(document.createTextNode("Sorry, an error occurred: " + error.Message), progress, "only");
 					}
 				})
 			);

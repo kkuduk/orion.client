@@ -17,7 +17,6 @@
  */
 define(['dojo', 'dijit', 'dojo/hash', 'dijit/form/ValidationTextBox'], function(dojo, dijit) {
                 
-	
 	var interestedUnstagedGroup = ["Missing","Modified","Untracked","Conflicting"];
 	var interestedStagedGroup = ["Added", "Changed","Removed"];
 	var conflictPatterns = [["Both","Modified","Added", "Changed","Missing"],["RemoteDelete","Untracked","Removed"],["LocalDelete","Modified","Added", "Missing"]];
@@ -33,6 +32,12 @@ define(['dojo', 'dijit', 'dojo/hash', 'dijit/form/ValidationTextBox'], function(
 		"Conflicting":["gitImageSprite git-sprite-conflict-file", "Conflicting"]	
 	};
 	
+	var statusUILocation = "git/git-status2.html";
+	
+	function isChange(change){
+		return isStaged(change) || isUnstaged(change);
+	}
+	
 	function isStaged(change){
 		for(var i = 0; i < interestedStagedGroup.length ; i++){
 			if(change.type === interestedStagedGroup[i]){
@@ -42,9 +47,39 @@ define(['dojo', 'dijit', 'dojo/hash', 'dijit/form/ValidationTextBox'], function(
 		return false;
 	}
 	
+	function isUnstaged(change){
+		for(var i = 0; i < interestedUnstagedGroup.length ; i++){
+			if(change.type === interestedUnstagedGroup[i]){
+				return  true;
+			}
+		}
+		return false;
+	}
+	
+	function hasStagedChanges(status){
+		for(var i = 0; i < interestedStagedGroup.length ; i++){
+			if (status[interestedStagedGroup[i]].length > 0)
+				return true;
+		}
+		return false;
+	}
+	
+	function hasUnstagedChanges(status){
+		for(var i = 0; i < interestedUnstagedGroup.length ; i++){
+			if (status[interestedUnstagedGroup[i]].length > 0)
+				return true;
+		}
+		return false;
+	}
+	
 	//return module exports
 	return {
-		isStaged: isStaged
+		statusUILocation: statusUILocation,
+		isStaged: isStaged,
+		isUnstaged: isUnstaged,
+		isChange: isChange,
+		hasStagedChanges: hasStagedChanges,
+		hasUnstagedChanges: hasUnstagedChanges
 	};
 
 });

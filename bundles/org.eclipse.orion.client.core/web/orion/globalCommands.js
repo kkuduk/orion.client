@@ -14,7 +14,7 @@
 
 define(['require', 'dojo', 'dijit', 'orion/commonHTMLFragments', 'orion/commands', 'orion/parameterCollectors', 
 	'orion/extensionCommands', 'orion/util', 'orion/textview/keyBinding', 'orion/favorites', 'orion/contentTypes', 'orion/URITemplate', 'orion/PageUtil',
-	'dijit/Menu', 'dijit/MenuItem', 'dijit/form/DropDownButton', 'orion/widgets/OpenResourceDialog', 'orion/widgets/LoginDialog', 'orion/widgets/UserMenu'], 
+	'dijit/Menu', 'dijit/MenuItem', 'dijit/form/DropDownButton', 'orion/widgets/OpenResourceDialog', 'orion/widgets/LoginDialog', 'orion/widgets/UserMenu', 'orion/widgets/UserMenuDropDown'], 
         function(require, dojo, dijit, commonHTML, mCommands, mParameterCollectors, mExtensionCommands, mUtil, mKeyBinding, mFavorites, mContentTypes, URITemplate, PageUtil){
 
 	/**
@@ -58,6 +58,39 @@ define(['require', 'dojo', 'dijit', 'orion/commonHTMLFragments', 'orion/commands
 			dojo.hitch(progressService, progressService.init)("progressPane");
 		}
 	}
+	
+	function setUserName(registry, dropdown){
+			
+			var userService = registry.getService("orion.core.user");
+			
+			var authenticationIds = [];
+			
+			var authServices = registry.getServiceReferences("orion.core.auth");
+			
+			var settingsWidget = this;
+			
+			for(var i=0; i<authServices.length; i++){
+				var servicePtr = authServices[i];
+				var authService = registry.getService(servicePtr);		
+
+				authService.getKey().then(function(key){
+					authenticationIds.push(key);
+					authService.getUser().then(function(jsonData){
+					
+						var data = jsonData;
+						
+						var b = userService.getUserInfo(jsonData.Location).then( function( accountData ){
+						
+							if( accountData.Name ){
+								dropdown.set( 'label', accountData.Name );
+							}else if( accountData.login ){
+								dropdown.set( 'label', accountData.login );
+							}						
+						});
+					});
+				});
+			}
+		}
 
 	/**
 	 * Adds the user-related commands to the toolbar
@@ -74,11 +107,11 @@ define(['require', 'dojo', 'dijit', 'orion/commonHTMLFragments', 'orion/commands
 		}
 		
 		if(!dijit.byId('logins')){
-			var menuButton = new dijit.form.DropDownButton({
+			var menuButton = new orion.widgets.UserMenuDropDown({
 				id: "logins",
 				dropDown: userMenu,
 				label: "Options", 
-				showLabel: false
+				showLabel: true
 			});
 			dojo.addClass(menuButton.domNode, "commandMenu");
 			dojo.place(menuButton.domNode, userMenuPlaceholder, "only");
@@ -93,6 +126,8 @@ define(['require', 'dojo', 'dijit', 'orion/commonHTMLFragments', 'orion/commands
 				label: "Options",
 				position: ["above", "left", "right", "below"] // otherwise defaults to right and obscures adjacent commands
 			});
+			
+			setUserName( serviceRegistry, menuButton );
 		}
 		
 		for(var i=0; i<authServices.length; i++){
@@ -106,7 +141,7 @@ define(['require', 'dojo', 'dijit', 'orion/commonHTMLFragments', 'orion/commands
 							loginDialog.addUserItem(key, authService, label, jsonData);
 							userMenu.addUserItem(key, authService, label, jsonData);
 						}, 
-						function(errorData){
+						function(errorData, jsonData){
 							loginDialog.addUserItem(key, authService, label);
 							userMenu.addUserItem(key, authService, label, jsonData);
 						});
@@ -145,7 +180,7 @@ define(['require', 'dojo', 'dijit', 'orion/commonHTMLFragments', 'orion/commands
 						try{
 							dijit.popup.open({
 								popup: loginDialog,
-								around: dojo.byId('userInfo')
+								around: dojo.byId('userMenu')
 							});
 						}catch(e){}
 					}, 500);
@@ -153,7 +188,7 @@ define(['require', 'dojo', 'dijit', 'orion/commonHTMLFragments', 'orion/commands
 					try{
 						dijit.popup.open({
 							popup: loginDialog,
-							around: dojo.byId('userInfo')
+							around: dojo.byId('userMenu')
 						});	
 					}catch(e){}
 				}
@@ -222,7 +257,7 @@ define(['require', 'dojo', 'dijit', 'orion/commonHTMLFragments', 'orion/commands
 			linksMenu.destroy();
 		} 
 		linksMenu = new dijit.Menu({
-			style: "display: none;",
+			style: "display: none;padding:3px;border-radius:3px;",
 			id: "relatedLinksMenu"
 		});
 		return linksMenu;
@@ -384,10 +419,62 @@ define(['require', 'dojo', 'dijit', 'orion/commonHTMLFragments', 'orion/commands
 		exclusions = excluded;
 	}
 	
+	function makeFavorite(serviceRegistry) {
+		var favoriteService = serviceRegistry.getService("orion.core.favorite");
+		//TODO Shouldn't really be making service selection decisions at this level. See bug 337740
+		if (!favoriteService) {
+			favoriteService = new mFavorites.FavoritesService({serviceRegistry: serviceRegistry});
+			favoriteService = serviceRegistry.getService("orion.core.favorite");
+		}
+		if (favoriteTarget && favoriteTarget.Location) {
+			favoriteService.hasFavorite(favoriteTarget.ChildrenLocation || favoriteTarget.Location).then(function(result) {
+				if (!result) {
+					favoriteService.makeFavorites([favoriteTarget]);
+					serviceRegistry.getService("orion.page.message").setMessage(favoriteTarget.Name + " has been added to the favorites list.", 2000);
+				} else {
+					serviceRegistry.getService("orion.page.message").setMessage(favoriteTarget.Name + " is already a favorite.", 2000);
+				}
+			});
+		} 
+	}
+	
+	// Hook up favorites button
+	function checkFavoritesButton(serviceRegistry, commandService) {
+		var faveButton = dojo.byId("pageFavorite");
+		if (faveButton) {
+			if (favoriteTarget && favoriteTarget.Location) {
+				dojo.addClass(faveButton, "commandButton");
+				dojo.connect(faveButton, "onclick", this, function() {
+					makeFavorite(serviceRegistry);
+				});
+				// onClick events do not register for spans when using the keyboard
+				dojo.connect(faveButton, "onkeypress", this, function(e) {
+					if (e.keyCode === dojo.keys.ENTER) {						
+						makeFavorite(serviceRegistry);
+					}
+				});
+				dojo.connect(faveButton, "onmouseover", faveButton, function() {dojo.addClass(this, "commandButtonOver");});
+				dojo.connect(faveButton, "onfocus", faveButton, function() {dojo.addClass(this, "commandButtonOver");});
+				dojo.connect(faveButton, "onmouseout", faveButton, function() {dojo.removeClass(this, "commandButtonOver");});
+				dojo.connect(faveButton, "onblur", faveButton, function() {dojo.removeClass(this, "commandButtonOver");});
+				new mCommands.CommandTooltip({
+					connectId: [faveButton],
+					label: "Add to the favorites list",
+					position: ["below", "left", "right", "above"], // below since this is at top of page.
+					commandService: commandService
+				});
+				dojo.style(faveButton, "visibility", "visible");
+			} else {
+				dojo.style(faveButton, "visibility", "hidden");
+			}
+		}
+	}
+	
 	function setPageTarget(item, serviceRegistry, commandService, /*optional*/ alternateItem, /* optional */ pageFavoriteTarget) {
 		pageItem = item;
 		generateRelatedLinks(serviceRegistry, item, exclusions, commandService, alternateItem);
 		favoriteTarget = pageFavoriteTarget;
+		checkFavoritesButton(serviceRegistry, commandService);
 		// in the future we should do breadcrumb management and search scoping here
 	}
 	
@@ -486,62 +573,6 @@ define(['require', 'dojo', 'dijit', 'orion/commonHTMLFragments', 'orion/commands
 			text = document.createTextNode(document.title);
 			dojo.place(text, title, "last");
 		}
-		
-		function makeFavorite() {
-			var favoriteService = serviceRegistry.getService("orion.core.favorite");
-			//TODO Shouldn't really be making service selection decisions at this level. See bug 337740
-			if (!favoriteService) {
-				favoriteService = new mFavorites.FavoritesService({serviceRegistry: serviceRegistry});
-				favoriteService = serviceRegistry.getService("orion.core.favorite");
-			}
-			if (favoriteTarget && favoriteTarget.Location) {
-				favoriteService.hasFavorite(favoriteTarget.ChildrenLocation || favoriteTarget.Location).then(function(result) {
-					if (!result) {
-						favoriteService.makeFavorites([favoriteTarget]);
-						serviceRegistry.getService("orion.page.message").setMessage(favoriteTarget.Name + " has been added to the favorites list.", 2000);
-					} else {
-						serviceRegistry.getService("orion.page.message").setMessage(favoriteTarget.Name + " is already a favorite.", 2000);
-					}
-				});
-			} else {
-				var url = window.location.pathname + window.location.hash;
-				favoriteService.hasFavorite(url).then(function(result) {
-					if (!result) {
-						favoriteService.addFavoriteUrl(url);
-						serviceRegistry.getService("orion.page.message").setMessage(url + " has been added to the favorites list.", 2000);
-					} else {
-						serviceRegistry.getService("orion.page.message").setMessage(url + " is already a favorite.", 2000);
-					}
-				});
-			}
-		}
-		
-		// Hook up favorites button
-		var faveButton = dojo.byId("pageFavorite");
-		if (faveButton) {
-			dojo.addClass(faveButton, "commandButton");
-			dojo.connect(faveButton, "onclick", this, function() {
-				makeFavorite();
-			});
-			// onClick events do not register for spans when using the keyboard
-			dojo.connect(faveButton, "onkeypress", this, function(e) {
-				if (e.keyCode === dojo.keys.ENTER || e.keyCode === dojo.keys.SPACE) {						
-					makeFavorite();
-				}
-			});
-			dojo.connect(faveButton, "onmouseover", faveButton, function() {dojo.addClass(this, "commandButtonOver");});
-			dojo.connect(faveButton, "onfocus", faveButton, function() {dojo.addClass(this, "commandButtonOver");});
-			dojo.connect(faveButton, "onmouseout", faveButton, function() {dojo.removeClass(this, "commandButtonOver");});
-			dojo.connect(faveButton, "onblur", faveButton, function() {dojo.removeClass(this, "commandButtonOver");});
-			new mCommands.CommandTooltip({
-				connectId: [faveButton],
-				label: "Add this page to the favorites list",
-				position: ["below", "left", "right", "above"], // below since this is at top of page.
-				commandParent: parent,
-				commandService: commandService
-			});
-
-		}
 
 		
 		// Assemble global commands
@@ -552,6 +583,9 @@ define(['require', 'dojo', 'dijit', 'orion/commonHTMLFragments', 'orion/commands
 			id: "orion.makeFavorite",
 			visibleWhen: function(item) {
 				var items = dojo.isArray(item) ? item : [item];
+				if (items.length === 0) {
+					return false;
+				}
 				for (var i=0; i < items.length; i++) {
 					if (!items[i].Location) {
 						return false;
@@ -713,7 +747,8 @@ define(['require', 'dojo', 'dijit', 'orion/commonHTMLFragments', 'orion/commands
 		}
 		
 		userMenu.setKeyAssist(keyAssistCommand.callback);
-		
+		checkFavoritesButton(serviceRegistry, commandService);
+
 		renderGlobalCommands(commandService, handler, pageItem);
 		
 		generateUserInfo(serviceRegistry);

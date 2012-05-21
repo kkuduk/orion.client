@@ -6,7 +6,7 @@ html {
 html, body {
 	margin: 0;
 	padding: 0;
-	font: 9pt Verdana,Arial,Helvetica,Myriad,Tahoma,clean,sans-serif; 
+	font: 8pt Verdana,Arial,Helvetica,Myriad,Tahoma,clean,sans-serif; 
 }
 
 .orionPage {
@@ -37,21 +37,21 @@ h2 {
 a {
 	cursor: hand;
 	text-decoration: none;
-	color: #024892;
+	color: #3087B3;
 }
 
 a:visited {
-	color: #024892;
+	color: #3087B3;
 }
 
 a:active {
-	color: #024892;
+	color: #3087B3;
 }
 
 a:hover {
 	cursor: hand;
 	text-decoration: underline;
-	color: #024892;
+	color: #3087B3;
 }
 
 .layoutBlock {
@@ -65,6 +65,12 @@ a:hover {
 }
 
 .layoutLeft {
+	float: left;
+	margin: 0;
+	margin-top:5px !important;
+}
+
+.layoutLeftBanner {
 	float: left;
 	margin: 0;
 }
@@ -96,53 +102,53 @@ a:hover {
 	margin: 4px;
 }
 
-.navlinkonpage {
-	color: #024892;
-	cursor: hand;
-	text-decoration: none;
+.navlink {
+	display: inline-block;
+	padding: 2px;
 }
 
-.navlinkonpage:visited {
-	color: #024892;
+.navlinkonpage {
+	text-decoration: none;
+	padding: 2px;
 }
 
 .navlinkonpage:active {
-	color: #024892;
-	cursor: hand;
 	text-decoration: none;
 }
 
 .navlinkonpage:hover {
-	color: #024892;
-	cursor: hand;
 	text-decoration: none;
 	border-bottom: 1px dotted;
 }
 
 .logo {
-	padding-top: 2px;
+	padding-top: 4px;
+	padding-right:5px;
 }
 
 .primaryNav {
-	font-size: 8pt;
-	color: #bfbfbf;
-	padding-top: 4px;
+	font-size: 10px;
+	font-weight:bold;
+	color: #DDD;
+	padding-top: 6px;
 	vertical-align: baseline;
 }
 
 .primaryNav a {
-	font-size: 8pt;
-	color: #bfbfbf;
+	font-size: 10px;
+	color: #DDD;
 	margin-right: 6px;
 	margin-left: 6px;
-	padding-top: 4px;
+	padding-top: 6px;
 	vertical-align: baseline;
+	text-decoration: none;
 }
 
 .primaryNav a:hover {
 	color: #bfbfbf;
 	cursor: hand;
-	text-decoration: underline;
+	color: white;
+	font-weight:bolder;
 }
 
 .pageNav {
@@ -151,9 +157,8 @@ a:hover {
 }
 
 .pageActions {
-	font: 9pt Verdana, Arial,Helvetica,Myriad,Tahoma,clean,sans-serif;
-	min-height: 30px;
-	margin-top: 4px;
+	min-height: 28px;
+	margin-top: 7px;
 }
 
 /* 4px margin used by toolbar, plus 4px of border/padding */
@@ -167,10 +172,10 @@ a:hover {
 }
 
 .taskTitle {
-	font: 10pt Verdana, Arial,Helvetica,Myriad,Tahoma,clean,sans-serif;
-	font-weight: bold;
-	color:  #024892 !important;  /* overriding command framework values */
+	color:  #3087B3 !important;  /* overriding command framework values */
 	text-align: left !important;
+	font-weight: bold !important;
+	border: 1px solid transparent !important;
 }
 
 .taskDescription {
@@ -182,6 +187,13 @@ a:hover {
 	font: 8pt Verdana, Arial,Helvetica,Myriad,Tahoma,clean,sans-serif;
 	margin-top: 2px;
 	vertical-align: baseline;
+}
+
+.sectionAnchor{
+	line-height:16px;
+	font-size:10pt;
+	color: #444;
+	font-weight:normal;
 }
 
 .pageNavigationActions {
@@ -205,6 +217,7 @@ a:hover {
 .parametersDismiss {
 	color: #404040;
 	vertical-align: middle;
+	font-weight: normal;
 }
 
 .dismiss {
@@ -222,11 +235,21 @@ a:hover {
 }
 
 .parameterInput {
-	margin-left: 4px;
+	margin-right: 16px;
+	font-weight: normal;
+	vertical-align: baseline;
 }
 
 .parameterInputurl {
 	width: 30em;
+}
+
+.parameterInputcheckbox {
+	width: auto;
+}
+
+.parameterInputtextarea {
+	vertical-align: top;
 }
 
 .navTableHeading {
@@ -237,6 +260,23 @@ a:hover {
 .navColumn {
 	min-width: 150px;
 	padding-right: 8px;
+	vertical-align: baseline;
+}
+
+.navRow {
+	vertical-align: baseline;
+	border-spacing: 8px;
+}
+
+.mainNavColumn {
+	display: inline-block;
+	padding: 4px;
+	vertical-align: baseline;
+}
+
+.singleNavColumn {
+	width: 100%;
+	white-space: nowrap;
 }
 
 .actionsColumn {
@@ -270,8 +310,8 @@ a:hover {
 @media all and (min-device-width: 1025px) {
 	.modelDecorationSprite { 	
 		padding: 0;
-		padding-left: 4px;
-		padding-right: 4px;
+		padding-left: 2px;
+		padding-right: 2px;
 		margin: 0;
 		margin-right: 2px;
 	}
@@ -303,16 +343,6 @@ a:hover {
     min-width: 300px;
 }
 
-.paneHeadingToolbar {
-	text-align: right;
-	vertical-align: middle;
-	margin-left: 16px;
-}
-
-.paneHeadingCommands {
-	text-align: right;
-}
-
 .userEditBoxPrompt {
 	background: white;
 	color: black;
@@ -320,7 +350,7 @@ a:hover {
 
 .auxpane {
 	border: 0;
-    background: #f8f8f8;
+    background: #fbfbfb;
     overflow-x: auto;
     min-width: 200px;
     padding-top: 16px;
@@ -469,7 +499,8 @@ a:hover {
 	vertical-align: middle;
 	min-height: 32px;
 	width: 100%;
-	color: #222222;
+	color: #222;
+	border-bottom: 1px solid whitesmoke;
 }
 
 .auxToolbar {
@@ -487,8 +518,10 @@ a:hover {
 }
 
 .pageTitle {
-	font-size: 12pt;
+	font-size: 13px;
 	vertical-align: top;
+	margin-top:4px;
+	font-weight:bold;
 	color: #666666;
 }
 
@@ -497,7 +530,6 @@ a:hover {
 	width: 100%;
 	border: 0;
 	padding: 0;
-	font-size: 0.9em;
 	min-height: 2.5em; 
 	border-top: 1px solid #dbdbdb
 }
@@ -510,51 +542,19 @@ a:hover {
 	margin: 0;
 	border: 0;
 	background-color: #2e2e2e;
-	height: 22px;
+	background: -webkit-linear-gradient(top, #7D7E7D 0%, #0E0E0E 100%);
+	background: -moz-linear-gradient(top, #7D7E7D 0%, #0E0E0E 100%);
+	
+	height: 24px;
 }
 
 .titleArea {
     margin: 0;
     border: 0;
-    filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#ffffff', endColorstr='#f7f7f7'); /* IE */
-    background: -webkit-gradient(linear, left top, left bottom, from(#ffffff), to(#f7f7f7));
-    background: -moz-linear-gradient(top,  #ffffff,  #f7f7f7);
-    border-bottom: 1px solid #bfbfbf;
-}
-
-.paneTitle {
-	margin-top: 2px;
-	padding-top: 2px;
-	padding-left: 8px;
-	vertical-align: baseline;
-	display: inline-block;
-}
-
-.paneHeading {
-	background-color: #f8f8f8;
-	vertical-align: middle;
-	border-bottom: 1px solid #ebebeb;
-	border-top: 1px solid #ebebeb;
-	min-height: 26px;
-	width: 100%;
-	font-size: 10pt;
-	font-weight: bold;
-	color: #808080;
-}
-
-.paneHeadingFixed {
-	min-width: 300px;
-}
-
-.auxpaneHeading {
-	margin-top: 8px;
-	margin-right: 16px;
-	min-height: 26px;
-	vertical-align: baseline;
-	font-size: 10pt;
-	font-weight: bold;
-	color: #808080;
-	border-bottom: 1px solid #ebebeb;
+    filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#ffffff', endColorstr='#f6f6f6'); /* IE */
+    background: -webkit-gradient(linear, left top, left bottom, from(#ffffff), to(#f6f6f6));
+    background: -moz-linear-gradient(top,  #ffffff,  #f6f6f6);
+    border-bottom: 1px solid #EEE;
 }
 
 .slideContainer {
@@ -567,6 +567,10 @@ a:hover {
 	margin-right: 4px;
 	margin: 2px;
 	display: none;
+	padding: 3px;
+	vertical-align:middle;
+	font-size:11px;
+	font-weight:bold;
 }
 
 .slideParameters {
@@ -581,7 +585,7 @@ a:hover {
 .slide {
 	text-align: left;
 	vertical-align: middle;
-	float: left;
+	clear: both;
 	opacity: 0;
 	height: 0;
  	transition: opacity .5s ease-out;
@@ -600,17 +604,18 @@ a:hover {
 }
 
 .slideActive {
-	padding: 8px;
 	opacity: 1;
 	height: auto;
 }
 
 .searchbox {
-	background: transparent;
-	border: 1px solid #a6a6a6;
-	font-size: 8pt;
+	background: white;
+	border: 1px solid #CCC;
+	font-size: 11px;
 	min-width: 15em;
-	margin-top: 2px;
+	margin-top: 3px;
+	padding: 2px;
+	border-radius: 3px;
 }
 
 .toolbarButton {
@@ -681,7 +686,7 @@ a:hover {
 }
 
 .checkedRow {
-	background-color: #e3e3e3 !important;
+	background-color: #FFC !important; /* was e3e3e3 */
 }
 
 .testResult {
@@ -704,6 +709,7 @@ a:hover {
 .treetable {
 	border-spacing: 0;
 	min-width: 600px;
+	width:100%;
 }
 
 .favoritesTable {
@@ -727,11 +733,11 @@ a:hover {
 }
 
 .lightTreeTableRow > td {
-	border-bottom: 1px solid #e6e6e6;
+	border-bottom: 1px solid whiteSmoke;
 }
 
 .darkTreeTableRow > td {
-	border-bottom: 1px solid #e6e6e6;
+	border-bottom: 1px solid whiteSmoke;
 }
 
 .testNavTreetable {
@@ -773,9 +779,13 @@ a:hover {
 }
 
 .treeIterationCursor {
-	background-color: #EAF2FE !important;
+	outline: #CCC 1px dotted;
+	border-radius:4px;
 }
 
+.treeIterationCursorRow {
+	background-color: #f3f6fe;
+}
 .searchCmdGroupMargin {
 	margin-left: 16px;
 }

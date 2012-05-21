@@ -12,7 +12,7 @@
 /*global dojo eclipse:true widgets*/
 /*jslint regexp:false browser:true forin:true*/
 
-define(['dojo', 'orion/explorer', 'orion/util', 'orion/git/gitCommands', 'orion/git/widgets/CommitTooltipDialog'], function(dojo, mExplorer, mUtil, mGitCommands) {
+define(['dojo', 'orion/explorer', 'orion/util', 'orion/git/gitCommands', 'orion/navigationUtils', 'orion/git/widgets/CommitTooltipDialog'], function(dojo, mExplorer, mUtil, mGitCommands, mNavUtils) {
 
 var exports =  {};
 exports.GitCommitNavigator = (function() {
@@ -44,8 +44,7 @@ exports.GitCommitNavigator = (function() {
 
 		var waitDeferred = new dojo.Deferred();
 
-		// show checkboxes only for file commits
-		this.renderer._useCheckboxSelection = !this.isDirectory && this.checkbox;
+		this.renderer._useCheckboxSelection = false;
 		
 		path = mUtil.makeRelative(path);
 		if (path === this._lastHash && !force) {
@@ -115,12 +114,11 @@ exports.GitCommitNavigator = (function() {
 		};
 
 		if (treeRoot.Children) {
-			this.createTree(this.parentId, new mExplorer.ExplorerFlatModel(path, doGitLog, treeRoot.Children));
+			this.createTree(this.parentId, new mExplorer.ExplorerFlatModel(path, doGitLog, treeRoot.Children), {setFocus: !this.minimal});
 			waitDeferred.callback();
 		} else {
-			this.createTree(this.parentId, new mExplorer.ExplorerFlatModel(path, doGitLog));
+			this.createTree(this.parentId, new mExplorer.ExplorerFlatModel(path, doGitLog), {setFocus: !this.minimal});
 		}
-
 		return waitDeferred;
 
 	};
@@ -203,6 +201,7 @@ exports.GitCommitRenderer = (function() {
 				
 			link = dojo.create("a", {className: "navlink", href: "/git/git-commit.html#" + item.Location + "?page=1&pageSize=1"}, div, "last");			
 			dojo.place(document.createTextNode(item.Message), link, "only");		
+			mNavUtils.addNavGrid(this.explorer.getNavDict(), item, link);
 			
 			var _timer;
 			
@@ -257,7 +256,7 @@ exports.GitCommitRenderer = (function() {
 			if (this.options['minimal'])
 				break;
 			
-			var actionsColumn = this.getActionsColumn(item, tableRow);
+			var actionsColumn = this.getActionsColumn(item, tableRow, null, null, true);
 			dojo.style(actionsColumn, "padding-left", "5px");
 			dojo.style(actionsColumn, "padding-right", "5px");
 			return actionsColumn;

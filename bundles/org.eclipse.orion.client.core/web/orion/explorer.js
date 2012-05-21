@@ -12,7 +12,7 @@
 /*global define window */
 /*jslint regexp:false browser:true forin:true*/
 
-define(['require', 'dojo', 'orion/treetable'], function(require, dojo, mTreeTable){
+define(['require', 'dojo', 'orion/treetable', 'orion/explorerNavHandler'], function(require, dojo, mTreeTable, mNavHandler){
 
 var exports = {};
 
@@ -86,6 +86,12 @@ exports.Explorer = (function() {
 		 * @param options optional parameters of the tree(custom indent, onCollapse callback)
 		 */
 		createTree: function (parentId, model, options){
+			if(this.selection) {
+				this.selection.setSelections([]);
+			}
+			if(this.getNavHandler()){
+				this.getNavHandler()._clearSelection();
+			}
 			var treeId = parentId + "innerTree";
 			var existing = dojo.byId(treeId);
 			if (existing) {
@@ -95,6 +101,13 @@ exports.Explorer = (function() {
 				model.rootId = treeId;
 			}
 			this.model = model;
+			this._parentId = parentId;
+			this._treeOptions = options;
+			var useSelection = !options || (options && !options.noSelection);
+			if(useSelection){
+				this.selectionPolicy = options ? options.selectionPolicy : "";
+				this._navDict = new mNavHandler.ExplorerNavDict(this.model);
+			}
 			this.myTree = new mTreeTable.TableTree({
 				id: treeId,
 				model: model,
@@ -107,6 +120,36 @@ exports.Explorer = (function() {
 				tableStyle: "mainPadding"
 			});
 			this.renderer._initializeUIState();
+			if(this.selectionPolicy === "cursorOnly"){
+				this.initNavHandler();
+			}
+		},
+		getNavHandler: function(){
+			return this._navHandler;
+		},
+		
+		getNavDict: function(){
+			return this._navDict;
+		},
+		
+		refreshSelection: function(){
+			if(this.selection) {
+				var navHandler = this.getNavHandler();
+				var selections = [];
+				if(navHandler && this.getNavDict()){
+					var existingSels = navHandler.getSelection();
+					for(var i = 0; i < existingSels.length; i++){
+						var rowDiv = navHandler.getRowDiv(existingSels[i]);
+						if(rowDiv && rowDiv.parentNode){
+							var value = this.getNavDict().getValue(this.model.getId(existingSels[i]));
+							if(value.model){
+								selections.push(value.model);
+							}
+						}
+					}
+				}
+				this.selection.setSelections(selections);
+			}
 		},
 		
 		getRootPath: function() {
@@ -114,6 +157,31 @@ exports.Explorer = (function() {
 				return this.model.root.Location;
 			}
 			return null;
+		},
+		
+		initNavHandler: function(){
+			var parentId = this._parentId;
+			var options = this._treeOptions;
+			
+			var useSelection = !options || (options && !options.noSelection);
+			if(!useSelection){
+				return;
+			}
+			if(!this.getNavHandler()){
+				dojo.attr(parentId, "tabIndex", 0);
+				this._navHandler = new mNavHandler.ExplorerNavHandler(this, this._navDict, {setFocus: options && options.setFocus, selectionPolicy: (options ? options.selectionPolicy : null)});
+			}
+			var that = this;
+			this.model.getRoot(function(itemOrArray){
+				if(itemOrArray instanceof Array){
+					that.getNavHandler().refreshModel(that.getNavDict(), that.model, itemOrArray);
+				} else if(itemOrArray.children && itemOrArray.children instanceof Array){
+					that.getNavHandler().refreshModel(that.getNavDict(), that.model, itemOrArray.children);
+				}
+				if(options && options.setFocus){
+					that.getNavHandler().cursorOn();
+				}
+			});
 		},
 	    
 	    _lastHash: null,
@@ -247,7 +315,7 @@ exports.ExplorerRenderer = (function() {
 			this.renderTableHeader(tableNode);
 
 		},
-		getActionsColumn: function(item, tableRow, renderType, columnClass){
+		getActionsColumn: function(item, tableRow, renderType, columnClass, renderAsGrid){
 			renderType = renderType || "tool";
 			var commandService = this.explorer.registry.getService("orion.page.command");
 			var actionsColumn = document.createElement('td');
@@ -257,7 +325,7 @@ exports.ExplorerRenderer = (function() {
 			}
 			// contact the command service to render appropriate commands here.
 			if (this.actionScopeId) {
-				commandService.renderCommands(this.actionScopeId, actionsColumn, item, this.explorer, renderType);
+				commandService.renderCommands(this.actionScopeId, actionsColumn, item, this.explorer, renderType, null, (renderAsGrid && this.explorer.getNavDict()) ? this.explorer.getNavDict().getGridNavHolder(item, true) : null);
 			} else {
 				window.console.log("Warning, no action scope was specified.  No commands rendered.");
 			}
@@ -298,24 +366,22 @@ exports.ExplorerRenderer = (function() {
 			
 		onCheck: function(tableRow, checkBox, checked, manually){
 			checkBox.checked = checked;
-			if(this._highlightSelection && tableRow){
-				dojo.toggleClass(tableRow, "checkedRow", checked);
-			}
 			dojo.toggleClass(checkBox, "core-sprite-check_on", checked);
 			if(this.onCheckedFunc){
 				this.onCheckedFunc(checkBox.itemId, checked, manually);
 			}
-			this._storeSelections();
-			if (this.explorer.selection) {
-				this.explorer.selection.setSelections(this.getSelected());		
+			if(this.explorer.getNavHandler() && manually){
+				this.explorer.getNavHandler().setSelection(this.explorer.getNavDict().getValue(tableRow.id).model, true);	
 			}
 		},
 		
-		_storeSelections: function() {
-			var selectionIDs = this.getSelectedIds();
-			var prefPath = this._getUIStatePreferencePath();
-			if (prefPath && window.sessionStorage) {
-				window.sessionStorage[prefPath+"selection"] = JSON.stringify(selectionIDs);
+		storeSelections: function() {
+			if(this.explorer.getNavHandler()){
+				var selectionIDs = this.explorer.getNavHandler().getSelectionIds();
+				var prefPath = this._getUIStatePreferencePath();
+				if (prefPath && window.sessionStorage) {
+					window.sessionStorage[prefPath+"selection"] = JSON.stringify(selectionIDs);
+				}
 			}
 		},
 		
@@ -329,26 +395,30 @@ exports.ExplorerRenderer = (function() {
 				}
 			}
 			var i;
-			if (selections) {
+			if (selections && this.explorer.getNavDict()) {
+				var selectedItems = [];
 				for (i=0; i<selections.length; i++) {
-					var tableRow = dojo.byId(selections[i]);
-					if (tableRow) {
+					var wrapper = this.explorer.getNavDict().getValue(selections[i]);
+					if(wrapper && wrapper.rowDomNode && wrapper.model){
+						selectedItems.push(wrapper.model);
 						if(this._highlightSelection){
-							dojo.addClass(tableRow, "checkedRow");
+							dojo.addClass(wrapper.rowDomNode, "checkedRow");
 						}
-						var check = dojo.byId(this.getCheckBoxId(tableRow.id));
+						var check = dojo.byId(this.getCheckBoxId(wrapper.rowDomNode.id));
 						if (check) {
 							check.checked = true;
 							dojo.addClass(check, "core-sprite-check_on");
 						}
 					}
 				}
+				// notify the selection service of our new selections
+				if(this.explorer.selection) {
+					this.explorer.selection.setSelections(selectedItems);
+					if(this.explorer.getNavHandler()){
+						this.explorer.getNavHandler().refreshSelection();
+					}
+				}
 			}	
-			// notify the selection service of our new selections
-			var selectedItems = this.getSelected();
-			if(this.explorer.selection) {
-				this.explorer.selection.setSelections(selectedItems);
-			}
 		},
 		
 		_storeExpansions: function(prefPath) {
@@ -437,27 +507,10 @@ exports.ExplorerRenderer = (function() {
 			});
 			return expandImage;
 		},
+		
 		render: function(item, tableRow){
-			tableRow.cellSpacing = "8px";
+			dojo.addClass(tableRow, "navRow");
 			this.renderRow(item, tableRow);
-		},
-		
-		getSelected: function() {
-			var selected = [];
-			dojo.query(".core-sprite-check_on").forEach(dojo.hitch(this, function(node) {
-				var row = node.parentNode.parentNode;
-				selected.push(this.tableTree.getItem(row));
-			}));
-			return selected;
-		},
-		
-		getSelectedIds: function() {
-			var selected = [];
-			dojo.query(".core-sprite-check_on").forEach(dojo.hitch(this, function(node) {
-				var row = node.parentNode.parentNode;
-				selected.push(row.id);
-			}));
-			return selected;
 		},
 		
 		rowsChanged: function() {
@@ -473,8 +526,9 @@ exports.ExplorerRenderer = (function() {
 				});
 			}
 			// notify the selection service of the change in state.
-			if(this.explorer.selection) {
-				this.explorer.selection.setSelections(this.getSelected());
+			if(this.explorer.selectionPolicy !== "cursorOnly"){
+				this.explorer.refreshSelection();
+				this.explorer.initNavHandler();			
 			}
 		},
 		updateCommands: function(){
@@ -486,7 +540,9 @@ exports.ExplorerRenderer = (function() {
 				
 				dojo.empty(actionsWrapper);
 				// contact the command service to render appropriate commands here.
-				registry.getService("orion.page.command").renderCommands(this.actionScopeId, actionsWrapper, node._item, this.explorer, "tool");
+				if (this.actionScopeId) {
+					registry.getService("orion.page.command").renderCommands(this.actionScopeId, actionsWrapper, node._item, this.explorer, "tool");
+				}
 			});
 		},
 		
@@ -562,7 +618,15 @@ exports.SelectionRenderer = (function(){
 	SelectionRenderer.prototype.renderRow = function(item, tableRow) {
 		dojo.style(tableRow, "verticalAlign", "baseline");
 		dojo.addClass(tableRow, "treeTableRow");
-
+		var navDict = this.explorer.getNavDict();
+		if(navDict){
+			navDict.addRow(item, tableRow);
+			dojo.connect(tableRow, "onclick", dojo.hitch(this, function(evt) {
+				if(this.explorer.getNavHandler()){
+					this.explorer.getNavHandler().onClick(item, evt);
+				}
+			}));
+		}
 		var checkColumn = this.getCheckboxColumn(item, tableRow);
 		if(checkColumn) {
 			dojo.addClass(checkColumn, 'checkColumn');
@@ -573,8 +637,11 @@ exports.SelectionRenderer = (function(){
 		var cell = this.getCellElement(i, item, tableRow);
 		while(cell){
 			tableRow.appendChild(cell);
-			dojo.addClass(cell, 'secondaryColumn');
-			
+			if (i===0) {
+				dojo.addClass(cell, "navColumn");
+			} else {
+				dojo.addClass(cell, "secondaryColumn");
+			}
 			cell = this.getCellElement(++i, item, tableRow);
 		}
 		
@@ -596,5 +663,56 @@ exports.SelectionRenderer = (function(){
 	
 	return SelectionRenderer;
 }());
+
+exports.SimpleFlatModel = (function() {	
+	/**
+	 * Creates a new flat model based on an array of items already known.
+	 *
+	 * @name orion.explorer.SimpleFlatModel
+	 * @param {Array} items the items in the model
+	 * @param {String} idPrefix string used to prefix generated id's
+	 * @param {Function} getKey function used to get the property name used for generating an id in the model
+	 */
+	function SimpleFlatModel(items, idPrefix, getKey) {
+		this.items = items;
+		this.getKey = getKey;
+		this.idPrefix = idPrefix;
+		this.root = {children: items};
+	}
+	
+	SimpleFlatModel.prototype = new exports.ExplorerModel();
+		
+	SimpleFlatModel.prototype.getRoot = function(onItem){
+		onItem(this.root);
+	};
+	
+	SimpleFlatModel.prototype.destroy = function() {
+	};
+	
+	SimpleFlatModel.prototype.getId = function(/* item */ item){
+		var key = this.getKey(item);
+		// this might be a path, so strip slashes
+		var stripSlashes = key.replace(/[\\\/]/g, "");
+		var id = "";
+		for (var i=0; i<stripSlashes.length; i++) {
+			if (stripSlashes[i].match(/[^\.\:\-\_0-9A-Za-z]/g)) {
+				id += stripSlashes.charCodeAt(i);
+			} else {
+				id += stripSlashes[i];
+			}
+		}
+		return this.idPrefix + id;
+	};
+		
+	SimpleFlatModel.prototype.getChildren = function(parentItem, /* function(items) */ onComplete){
+		if(parentItem === this.root){
+			onComplete(this.items);
+		}else{
+			onComplete([]);
+		}
+	};
+	return SimpleFlatModel;
+}());
+
 return exports;
 });

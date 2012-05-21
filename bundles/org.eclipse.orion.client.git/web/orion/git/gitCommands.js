@@ -9,11 +9,12 @@
  * Contributors: IBM Corporation - initial API and implementation
  ******************************************************************************/
 
-/*global window widgets eclipse:true serviceRegistry define */
-/*browser:true*/
+/*global alert confirm orion window widgets eclipse:true serviceRegistry define */
+/*jslint browser:true eqeqeq:false laxbreak:true */
 define(['require', 'dojo', 'orion/commands', 'orion/util', 'orion/git/util', 'orion/git/widgets/CloneGitRepositoryDialog', 
         'orion/git/widgets/AddRemoteDialog', 'orion/git/widgets/GitCredentialsDialog', 'orion/widgets/NewItemDialog', 
-        'orion/git/widgets/RemotePrompterDialog', 'orion/git/widgets/ApplyPatchDialog', 'orion/git/widgets/OpenCommitDialog', 'orion/git/widgets/ContentDialog'], 
+        'orion/git/widgets/RemotePrompterDialog', 'orion/git/widgets/ApplyPatchDialog', 'orion/git/widgets/OpenCommitDialog', 
+        'orion/git/widgets/ContentDialog', 'orion/git/widgets/CommitDialog'], 
         function(require, dojo, mCommands, mUtil, mGitUtil) {
 
 /**
@@ -716,7 +717,7 @@ var exports = {};
 			imageClass: "git-sprite-status",
 			spriteClass: "gitCommandSprite",
 			hrefCallback : function(data) {
-				return require.toUrl("git/git-status.html")+"#" + data.items.StatusLocation;
+				return require.toUrl(mGitUtil.statusUILocation) + "#" + data.items.StatusLocation;
 			},
 			visibleWhen : function(item) {
 				if (!item.StatusLocation)
@@ -991,7 +992,7 @@ var exports = {};
 						display.Severity = "Warning";
 						display.HTML = true;
 						display.Message = "<span>" + result.jsonData.Result
-							+ ". Go to <a href=\"" + require.toUrl("git/git-status.html") + "#" 
+							+ ". Go to <a href=\"" + require.toUrl(mGitUtil.statusUILocation) + "#" 
 							+ statusLocation +"\">Git Status page</a>.<span>";
 					} else if(result.error) {
 						var statusLocation = item.HeadLocation.replace("commit/HEAD", "status");
@@ -1003,7 +1004,7 @@ var exports = {};
 							display.Message = result.error.message;
 						}
 						display.HTML = true;
-						display.Message ="<span>" + display.Message + " Go to <a href=\"" + require.toUrl("git/git-status.html") + "#" 
+						display.Message ="<span>" + display.Message + " Go to <a href=\"" + require.toUrl(mGitUtil.statusUILocation) + "#" 
 							+ statusLocation + "\">Git Status page</a>.<span>";
 					}
 
@@ -1016,7 +1017,7 @@ var exports = {};
 						display.Severity = "Error";
 						display.HTML = true;
 						display.Message = "<span>" + dojo.fromJson(ioArgs.xhr.responseText).DetailedMessage
-						+ ". Go to <a href=\"" + require.toUrl("git/git-status.html") + "#" 
+						+ ". Go to <a href=\"" + require.toUrl(mGitUtil.statusUILocation) + "#" 
 						+ statusLocation +"\">Git Status page</a>.<span>";
 
 						serviceRegistry.getService("orion.page.message").setProgressResult(display);
@@ -1063,7 +1064,7 @@ var exports = {};
 						display.HTML = true;
 						display.Message = "<span>" + jsonData.Result
 							+ ". Some conflicts occurred. Please resolve them and continue, skip patch or abort rebasing."
-							+ " Go to <a href=\"" + require.toUrl("git/git-status.html") + "#" 
+							+ " Go to <a href=\"" + require.toUrl(mGitUtil.statusUILocation) + "#" 
 							+ statusLocation +"\">Git Status page</a>.<span>";
 					}
 					else if (jsonData.Result == "FAILED_WRONG_REPOSITORY_STATE") {
@@ -1071,7 +1072,7 @@ var exports = {};
 						display.HTML = true;
 						display.Message = "<span>" + jsonData.Result
 							+ ". Repository state is invalid (i.e. already during rebasing)."
-							+ " Go to <a href=\"" + require.toUrl("git/git-status.html") + "#"
+							+ " Go to <a href=\"" + require.toUrl(mGitUtil.statusUILocation) + "#"
 							+ statusLocation +"\">Git Status page</a>.<span>";
 					}
 					else if (jsonData.Result == "FAILED_UNMERGED_PATHS") {
@@ -1079,7 +1080,7 @@ var exports = {};
 						display.HTML = true;
 						display.Message = "<span>" + jsonData.Result
 							+ ". Repository contains unmerged paths."
-							+ " Go to <a href=\"" + require.toUrl("git/git-status.html") + "#"
+							+ " Go to <a href=\"" + require.toUrl(mGitUtil.statusUILocation) + "#"
 							+ statusLocation +"\">Git Status page</a>.<span>";
 					}
 					else if (jsonData.Result == "FAILED_PENDING_CHANGES") {
@@ -1087,7 +1088,7 @@ var exports = {};
 						display.HTML = true;
 						display.Message = "<span>" + jsonData.Result
 							+ ". Repository contains pending changes. Please commit or stash them."
-							+ " Go to <a href=\"" + require.toUrl("git/git-status.html") + "#" 
+							+ " Go to <a href=\"" + require.toUrl(mGitUtil.statusUILocation) + "#" 
 							+ statusLocation +"\">Git Status page</a>.<span>";
 					}
 					// handle other cases
@@ -1095,7 +1096,7 @@ var exports = {};
 						display.Severity = "Warning";
 						display.HTML = true;
 						display.Message = "<span>" + jsonData.Result
-							+ ". Go to <a href=\"" + require.toUrl("git/git-status.html") + "#"
+							+ ". Go to <a href=\"" + require.toUrl(mGitUtil.statusUILocation) + "#"
 							+ statusLocation +"\">Git Status page</a>.<span>";
 					} 
 
@@ -1653,12 +1654,12 @@ var exports = {};
 					else if (jsonData.Result == "CONFLICTING") {
 						display.Severity = "Warning";
 						display.HTML = true;
-						display.Message = "<span>" + jsonData.Result + ". Some conflicts occurred. Go to <a href=\"" + require.toUrl("git/git-status.html") + "#" + statusLocation
+						display.Message = "<span>" + jsonData.Result + ". Some conflicts occurred. Go to <a href=\"" + require.toUrl(mGitUtil.statusUILocation) + "#" + statusLocation
 								+ "\">Git Status page</a>.<span>";
 					} else if (jsonData.Result == "FAILED") {
 						display.Severity = "Error";
 						display.HTML = true;
-						display.Message = "<span>" + jsonData.Result + ". Go to <a href=\"" + require.toUrl("git/git-status.html") + "#" + statusLocation
+						display.Message = "<span>" + jsonData.Result + ". Go to <a href=\"" + require.toUrl(mGitUtil.statusUILocation) + "#" + statusLocation
 								+ "\">Git Status page</a>.<span>";
 					}
 					// handle other cases
@@ -2154,7 +2155,7 @@ var exports = {};
 						dialog.startup();
 						dialog.show();
 	
-			},
+			}
 			//visibleWhen : function(item) {
 				//return item.Type === "Clone" ;
 			//}
@@ -2306,7 +2307,7 @@ var exports = {};
 					return false;
 
 				for (var i = 0; i < items.length; i++) {
-					if (mGitUtil.isStaged(items[i]))
+					if (!mGitUtil.isChange(items[i]) || mGitUtil.isStaged(items[i]))
 						return false; 
 				}
 				return true;
@@ -2355,7 +2356,7 @@ var exports = {};
 					return false;
 
 				for (var i = 0; i < items.length; i++) {
-					if (!mGitUtil.isStaged(items[i]))
+					if (!mGitUtil.isChange(items[i]) || !mGitUtil.isStaged(items[i]))
 						return false; 
 				}
 				return true;
@@ -2364,7 +2365,9 @@ var exports = {};
 		
 		commandService.addCommand(unstageCommand);
 		
-		var commitMessageParameters = new mCommands.ParametersDescription([new mCommands.CommandParameter('name', 'text', 'Commit message')]);
+		var commitMessageParameters = new mCommands.ParametersDescription(
+			[new mCommands.CommandParameter('name', 'text', 'Commit message:', "", 4), new mCommands.CommandParameter('amend', 'boolean', 'Amend:', false)],
+			 {hasOptionalParameters: true});
 		
 		var commitCommand = new mCommands.Command({
 			name: "Commit",
@@ -2374,20 +2377,47 @@ var exports = {};
 			callback: function(data) {
 				var item = data.items;
 				
+				var commitFunction = function(body){		
+					var progressService = serviceRegistry.getService("orion.page.message");
+					progressService.createProgressMonitor(
+						serviceRegistry.getService("orion.git.provider").commitAll(item.CommitLocation, null, dojo.toJson(body)),
+						"Committing changes").deferred.then(
+						function(jsonData){
+							dojo.hitch(explorer, explorer.changedItem)(item);
+						}, displayErrorOnStatus
+					);
+				};
+				
 				var body = {};
 				body.Message = data.parameters.valueFor("name");
+				body.Amend = data.parameters.valueFor("amend");
 				
-				var progressService = serviceRegistry.getService("orion.page.message");
-				progressService.createProgressMonitor(
-					serviceRegistry.getService("orion.git.provider").commitAll(item.CommitLocation, null, dojo.toJson(body)),
-					"Committing changes").deferred.then(
-					function(jsonData){
-						dojo.hitch(explorer, explorer.changedItem)(item);
-					}, displayErrorOnStatus
-				);
+				var config = item.Clone.Config;
+				for (var i=0; i < config.length; i++){
+					if (config[i].Key === "user.name"){
+						body.CommitterName = config[i].Value;
+						body.AuthorName = config[i].Value;
+					} else if (config[i].Key === "user.email"){
+						body.CommitterEmail = config[i].Value;
+						body.AuthorEmail = config[i].Value;
+					}					
+				}
+				
+
+				if (body.Message && body.CommitterName && body.CommitterEmail && !data.parameters.optionsRequested) {
+					commitFunction(body);
+				} else {
+					var dialog = new orion.git.widgets.CommitDialog({
+						body: body,
+						func: commitFunction
+					});
+							
+					dialog.startup();
+					dialog.show();
+				}
 			},
 			visibleWhen: function(item) {
-				return true;
+				return mGitUtil.hasStagedChanges(item);
 			}
 		});	
 
@@ -2422,8 +2452,7 @@ var exports = {};
 			},
 			
 			visibleWhen: function(item) {
-				// TODO Should check if there are any local changes
-				return /*(self.hasStaged || self.hasUnstaged)*/ true;
+				return mGitUtil.hasStagedChanges(item) || mGitUtil.hasUnstagedChanges(item);;
 			}
 		});
 
@@ -2469,7 +2498,7 @@ var exports = {};
 					return false;
 
 				for (var i = 0; i < items.length; i++) {
-					if (mGitUtil.isStaged(items[i]))
+					if (!mGitUtil.isChange(items[i]) || mGitUtil.isStaged(items[i]))
 						return false; 
 				}
 				return true;
@@ -2508,8 +2537,96 @@ var exports = {};
 		});
 		
 		commandService.addCommand(showPatchCommand);
+		
+		// Rebase commands
+		
+		var rebaseContinueCommand = new mCommands.Command({
+			name: "Continue",
+			tooltip: "Contibue Rebase",
+			id: "eclipse.orion.git.rebaseContinueCommand",
+			callback: function(data) {
+				var item = data.items;
+				return _rebase(item.Clone.HeadLocation, "CONTINUE");
+			},
+			
+			visibleWhen: function(item) {
+				return item.RepositoryState.indexOf("REBASING") != -1;
+			}
+		});
+		
+		commandService.addCommand(rebaseContinueCommand);
+		
+		var rebaseSkipPatchCommand = new mCommands.Command({
+			name: "Skip Patch",
+			tooltip: "Skip Patch",
+			id: "eclipse.orion.git.rebaseSkipPatchCommand",
+			callback: function(data) {
+				var item = data.items;
+				return _rebase(item.Clone.HeadLocation, "SKIP");
+			},
+			
+			visibleWhen: function(item) {
+				return item.RepositoryState.indexOf("REBASING") != -1;
+			}
+		});
+		
+		commandService.addCommand(rebaseSkipPatchCommand);
+		
+		var rebaseAbortCommand = new mCommands.Command({
+			name: "Abort",
+			tooltip: "Abort Rebase",
+			id: "eclipse.orion.git.rebaseAbortCommand",
+			callback: function(data) {
+				var item = data.items;
+				return _rebase(item.Clone.HeadLocation, "ABORT");
+			},
+			
+			visibleWhen: function(item) {
+				return item.RepositoryState.indexOf("REBASING") != -1;
+			}
+		});
+		
+		commandService.addCommand(rebaseAbortCommand);		
+		
+		function _rebase(HeadLocation, action){
+			var progressService = serviceRegistry.getService("orion.page.message");
+			
+			progressService.createProgressMonitor(
+				serviceRegistry.getService("orion.git.provider").doRebase(HeadLocation, "", action),
+				action).deferred.then(
+				function(jsonData){
+					if (jsonData.Result == "OK" || jsonData.Result == "ABORTED" || jsonData.Result == "FAST_FORWARD" || jsonData.Result == "UP_TO_DATE") {
+						var display = [];
+						display.Severity = "Ok";
+						display.HTML = false;
+						display.Message = jsonData.Result;
+						
+						serviceRegistry.getService("orion.page.message").setProgressResult(display);
+						dojo.hitch(explorer, explorer.changedItem)({});
+					}
+					
+					if (jsonData.Result == "STOPPED") {
+						var display = [];
+						display.Severity = "Warning";
+						display.HTML = false;
+						display.Message = jsonData.Result + ". Repository still contains conflicts.";
+						
+						serviceRegistry.getService("orion.page.message").setProgressResult(display);
+						dojo.hitch(explorer, explorer.changedItem)({});
+					} else if (jsonData.Result == "FAILED_UNMERGED_PATHS") {
+						var display = [];
+						display.Severity = "Error";
+						display.HTML = false;
+						display.Message = jsonData.Result + ". Repository contains unmerged paths. Resolve conflicts first.";
+						
+						serviceRegistry.getService("orion.page.message").setProgressResult(display);
+					}
+					
+				}, displayErrorOnStatus
+			);
+		};
 	};
-	
+
 }());
 return exports;	
 });

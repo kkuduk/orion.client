@@ -27,12 +27,11 @@ define(['require'],
 	'<header role="banner">' +
 		//Top row:  Logo + discovery links + user
 		'<div id="staticBanner" class="layoutBlock topRowBanner">' +
-			'<a id="home" class="layoutLeft logo" href="' + require.toUrl("navigate/table.html") + '" aria-label="Orion Home"><img src="' + require.toUrl("images/orion-small-lightondark.gif") + '" alt="Orion Logo"/></a>' +
-			'<nav id="primaryNav" class="layoutLeft primaryNav" role="navigation"></nav>' +
+			'<a id="home" class="layoutLeftBanner logo" href="' + require.toUrl("navigate/table.html") + '" aria-label="Orion Home"><img src="' + require.toUrl("images/orion-transparent.png") + '" alt="Orion Logo"/></a>' +
+			'<nav id="primaryNav" class="layoutLeftBanner primaryNav" role="navigation"></nav>' +
 			'<div class="layoutRight">' +
-				'<div class="layoutLeft primaryNav">|</div>' +
-				'<div id="userInfo" class="layoutLeft primaryNav"></div>' +
-				'<div id="userMenu" class="spacingLeft layoutLeft textless"></div>' +
+				'<div id="userInfo" style= "display:none;" class="layoutLeftBanner primaryNav"></div>' +
+				'<div id="userMenu" class="spacingLeft layoutLeftBanner"></div>' +
 			'</div>' +
 		'</div>' +
 		//Title area
@@ -42,10 +41,9 @@ define(['require'],
 				'<div id="globalActions" class="spacingLeft layoutLeft"></div>' +
 				'<span id="pageFavorite" tabindex="0" role="button" aria-label="Add this page to the favorites list" class="spacingLeft layoutLeft imageSprite core-sprite-favorite_sml"></span>' +
 				'<div id="relatedLinks" class="spacingLeft layoutLeft"></div>' +
-				'<input type="search" id="search" placeholder="Search" title="Type a keyword or wild card to search in root" class="layoutLeft spacingLeft searchbox" role="search">' +
+				'<input type="text" id="search" placeholder="Search" title="Type a keyword or wild card to search in root" class="layoutLeft spacingLeft searchbox" role="search">' +
 			'</div>' +
-			'<div id="dimension" class="clear dimension"></div>' +
-			'<div id="location" class="clear currentLocation"></div>' +
+			'<div id="location" style="padding-bottom:5px;" class="clear currentLocation"></div>' +
 		'</div>' +
 	'</header>';
 	// END TOP BANNER FRAGMENT
@@ -67,6 +65,15 @@ define(['require'],
 		'</footer>';
 	// END BOTTOM BANNER FRAGMENT
 
+	function slideoutHTMLFragment(id) { 
+		return '<div id="'+id+'slideContainer" class="layoutBlock slideParameters slideContainer">' +
+			'<span id="'+id+'pageParameterArea" class="slide">' +
+				'<span id="'+id+'pageCommandParameters" class="layoutLeft parameters"></span>' +
+				'<span id="'+id+'pageCommandDismiss" class="layoutRight parametersDismiss"></span>' +
+			'</span>' +
+		'</div>';
+	}
+	
 	var toolbarHTMLFragment = 
 		'<ul class="layoutLeft commandList pageActions" id="pageActions"></ul>' +
 		'<ul class="layoutLeft commandList pageActions" id="selectionTools"></ul>' +
@@ -76,18 +83,14 @@ define(['require'],
 		'<div id="notificationArea" class="layoutLeft layoutBlock slideContainer">' +
 				'<div class="layoutLeft" id="notifications" aria-live="assertive" aria-atomic="true"></div>' +
 				'<div class="layoutRight"><span tabindex="0" role="button" aria-label="Close notification" class="layoutRight core-sprite-close imageSprite" id="closeNotifications"></span></div>' +
-		'</div>' +
-		'<div id="parameterArea" class="layoutBlock slideParameters slideContainer">' +
-			'<span id="pageParameterArea" class="slide">' +
-				'<span id="pageCommandParameters" class="parameters"></span>' +
-				'<span id="pageCommandDismiss" class="parametersDismiss"></span>' +
-			'</span>' +
-		'</div>';
+		'</div>' + slideoutHTMLFragment("mainToolbar");
+		
 	
 	//return the module exports
 	return {
 		topHTMLFragment: topHTMLFragment,
 		bottomHTMLFragment: bottomHTMLFragment,
-		toolbarHTMLFragment: toolbarHTMLFragment
+		toolbarHTMLFragment: toolbarHTMLFragment,
+		slideoutHTMLFragment: slideoutHTMLFragment
 	};
 });
