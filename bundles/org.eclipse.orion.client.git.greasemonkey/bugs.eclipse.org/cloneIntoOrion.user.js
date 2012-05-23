@@ -90,10 +90,68 @@
 
 	var gitRepoUrl = map[product + "_" + component];
 	if (gitRepoUrl) {
+	
+	    var div = document.createElement("div");
+	    div.style.height = "20px";
+	    div.className = "bz_alias_short_desc_container edit_form";
+	    var parentDiv = document.getElementById("changeform");
+	    parentDiv.insertBefore(div, document.getElementsByClassName("bz_alias_short_desc_container edit_form")[0].nextSibling);
+	    div.style.display = "none";
+	
+	    
 		var a = document.createElement("a");
-		a.href = "http://orionhub.org/git/git-repository.html#,cloneGitRepository=" + gitRepoUrl;
+		//a.href = "#";
 		a.target = "_blank";
 		a.appendChild(document.createTextNode("Clone into Orion"));
+		a.onclick = function(){
+            div.style.display = "block";
+		    return true;
+		    }
+		    
+		
+		    
+		var orionhub = document.createElement("a");
+		orionhub.href = "http://orionhub.org/git/git-repository.html#,cloneGitRepository=" + gitRepoUrl;
+		orionhub.target = "_blank";
+		orionhub.style.float = "right";
+		orionhub.style.paddingLeft = "10px";
+		div.appendChild(orionhub);
+		orionhub.appendChild(document.createTextNode("OrionHub"));
+		
+		var eclipseorg = document.createElement("a");
+		eclipseorg.href = "http://orion.eclipse.org/git/git-repository.html#,cloneGitRepository=" + gitRepoUrl;
+		eclipseorg.target = "_blank";
+		eclipseorg.style.float = "right";
+		eclipseorg.style.paddingLeft = "10px";
+		div.appendChild(eclipseorg);
+		eclipseorg.appendChild(document.createTextNode("orion.eclipse.org"));
+		
+		
+	    var yourown = document.createElement("a");
+		yourown.href = "";
+		yourown.target = "_blank";
+		yourown.style.float = "right";
+		yourown.style.paddingLeft = "10px";
+		yourown.appendChild(document.createTextNode("Clone into"));
+		//yourown.style.display = "none";
+		
+		
+		var host = document.createElement("input");
+		host.className = "txt";
+		host.style.float = "right";
+		host.style.paddingLeft = "10px";
+		host.placeholder = "address";
+		host.id = "hostid";
+		
+		host.onblur=function(){
+            yourown.href = "http://" + document.getElementById('hostid').value  + "/git/git-repository.html#,cloneGitRepository=" + gitRepoUrl;
+		    return true;
+		    }
+
+		     
+		div.appendChild(host);    
+		div.appendChild(yourown);    
+		    
 		var span = document.createElement("span");
 		if (!guest) {
 			span.style["padding"] = "10px";
