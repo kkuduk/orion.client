@@ -51,6 +51,7 @@
  *   ...
  */
 (function () {
+
 	String.prototype.trim = function() {
 		return this.replace(/^\s+|\s+$/g, "");
 	};
@@ -90,79 +91,115 @@
 
 	var gitRepoUrl = map[product + "_" + component];
 	if (gitRepoUrl) {
-	
-	    var div = document.createElement("div");
-	    div.style.height = "20px";
-	    div.className = "bz_alias_short_desc_container edit_form";
-	    var parentDiv = document.getElementById("changeform");
-	    parentDiv.insertBefore(div, document.getElementsByClassName("bz_alias_short_desc_container edit_form")[0].nextSibling);
-	    div.style.display = "none";
-	
-	    
-		var a = document.createElement("a");
-		//a.href = "#";
-		a.target = "_blank";
-		a.appendChild(document.createTextNode("Clone into Orion"));
-		a.onclick = function(){
-            div.style.display = "block";
-		    return true;
+		
+		var url = document.createElement("a");
+		url.id = "anchor";
+		url.innerHTML = gitRepoUrl;
+		url.href = "http://orionhub.org/git/git-repository.html#,cloneGitRepository=" + gitRepoUrl;
+		url.target = "_blank";
+		
+		var radio1 = document.createElement("input");
+		var orionhub = true;
+		radio1.name = "select";
+		radio1.id = "radio1";
+		radio1.style.fontWeight = "normal";
+		radio1.value = orionhub;
+		radio1.type = "radio";
+		radio1.onclick = function(){
+			    if (document.getElementById("radio1").checked){
+			    document.getElementById("anchor").href = "http:/orionhub.org/git/git-repository.html#,cloneGitRepository=" + gitRepoUrl;
 		    }
-		    
+		}
 		
-		    
-		var orionhub = document.createElement("a");
-		orionhub.href = "http://orionhub.org/git/git-repository.html#,cloneGitRepository=" + gitRepoUrl;
-		orionhub.target = "_blank";
-		orionhub.style.float = "right";
-		orionhub.style.paddingLeft = "10px";
-		div.appendChild(orionhub);
-		orionhub.appendChild(document.createTextNode("OrionHub"));
+		var radio2 = document.createElement("input");
+		var oeo = false;
+		radio2.name = "select";
+		radio2.style.fontWeight = "normal";
+		radio2.id = "radio2";
+		radio2.value = oeo;
+		radio2.type = "radio";
+		radio2.onclick = function(){
+			    if (document.getElementById("radio2").checked){
+			    document.getElementById("anchor").href = "http:/orion.eclipse.org.org/git/git-repository.html#,cloneGitRepository=" + gitRepoUrl;
+		    }
+		}
 		
-		var eclipseorg = document.createElement("a");
-		eclipseorg.href = "http://orion.eclipse.org/git/git-repository.html#,cloneGitRepository=" + gitRepoUrl;
-		eclipseorg.target = "_blank";
-		eclipseorg.style.float = "right";
-		eclipseorg.style.paddingLeft = "10px";
-		div.appendChild(eclipseorg);
-		eclipseorg.appendChild(document.createTextNode("orion.eclipse.org"));
-		
-		
-	    var yourown = document.createElement("a");
-		yourown.href = "";
-		yourown.target = "_blank";
-		yourown.style.float = "right";
-		yourown.style.paddingLeft = "10px";
-		yourown.appendChild(document.createTextNode("Clone into"));
-		//yourown.style.display = "none";
-		
+		var radio3 = document.createElement("input");
+		var other = false;
+		radio3.name = "select";
+		radio3.style.fontWeight = "normal";
+		radio3.value = other;
+		radio3.type = "radio";
+		radio3.id = "radio3";
+		radio3.onclick = function(){
+			    if (document.getElementById("radio3").checked){
+			    document.getElementById("anchor").href = "http:/" + document.getElementById('hostid').value + "/git/git-repository.html#,cloneGitRepository=" + gitRepoUrl;
+		    }
+		}
 		
 		var host = document.createElement("input");
 		host.className = "txt";
-		host.style.float = "right";
-		host.style.paddingLeft = "10px";
+		host.size = "20";
 		host.placeholder = "address";
 		host.id = "hostid";
-		
 		host.onblur=function(){
-            yourown.href = "http://" + document.getElementById('hostid').value  + "/git/git-repository.html#,cloneGitRepository=" + gitRepoUrl;
-		    return true;
+		    if(document.getElementById("radio3").checked){
+		    document.getElementById("anchor").href = "http:/" + document.getElementById('hostid').value + "/git/git-repository.html#,cloneGitRepository=" + gitRepoUrl;
 		    }
-
-		     
-		div.appendChild(host);    
-		div.appendChild(yourown);    
-		    
-		var span = document.createElement("span");
-		if (!guest) {
-			span.style["padding"] = "10px";
-			span.appendChild(a);
-			var saveBtn = document.getElementById("commit_top");
-			document.getElementsByClassName("knob-buttons")[0].insertBefore(span, saveBtn);
-		} else {
-			span.style["float"] = "right";
-			span.appendChild(a);
-			var desc = document.getElementsByClassName("bz_alias_short_desc_container edit_form")[0];
-			desc.appendChild(span);
 		}
+
+		
+		
+		var div = document.createElement("div");
+		var hint = document.createElement("div");
+		hint.innerHTML = "select the Orion instance: ";
+		hint.style.fontStyle = "normal";
+		hint.style.fontWeight = "lighter";
+		hint.style.paddingTop = "10px";
+		
+		
+		var hr = document.createElement("hr");;
+		var table = document.getElementById("bz_big_form_parts");
+		var row = table.insertRow(0);
+		var cloneTh = row.insertCell(0);
+		cloneTh.innerHTML = "Work with the bug in Orion";
+		cloneTh.style.fontStyle = "bold";
+		cloneTh.style.fontWeight = "bold";
+		cloneTh.style.paddingTop = "10px";
+		cloneTh.style.paddingBottom = "10px";
+		cloneTh.innerHTML.color = "black";
+		cloneTh.appendChild(hint);
+		cloneTh.appendChild(div);
+		div.appendChild(radio1);
+		var node1 = document.createElement("span");
+		node1.innerHTML = "orionhub.org       ";
+		node1.style.fontWeight = "normal";
+		div.appendChild(node1);
+		div.appendChild(radio2);
+		var node2 = document.createElement("span");
+		node2.innerHTML = "orion.eclipse.org      ";
+		node2.style.fontWeight = "normal";
+		div.appendChild(node2);
+		div.appendChild(radio3);
+		var node3 = document.createElement("span");
+		node3.innerHTML = "other Orion at ";
+		node3.style.fontWeight = "normal";
+		div.appendChild(node3);
+		div.appendChild(host);
+		var node4 = document.createElement("span");
+		node4.innerHTML = "and click the link below to clone ";
+		node4.style.fontWeight = "normal";
+		cloneTh.appendChild(node4);
+		
+		
+		var row2 = table.insertRow(1);
+		var cloneTh2 = row2.insertCell(0);
+		cloneTh2.appendChild(url);
+		var cloneTh3 = row2.insertCell(1);
+		hr.width = "100%";
+		url.style.paddingTop = "20px";
+		var row3 = table.insertRow(2);
+		row3.appendChild(hr);
+		
 	}
 })();

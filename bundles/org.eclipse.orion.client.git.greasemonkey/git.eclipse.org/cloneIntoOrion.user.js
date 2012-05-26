@@ -42,6 +42,7 @@
 		var orionhub = true;
 		radio1.name = "select";
 		radio1.id = "radio1";
+		radio1.style.fontWeight = "normal";
 		radio1.value = orionhub;
 		radio1.type = "radio";
 		radio1.onclick = function(){
@@ -53,6 +54,7 @@
 		var radio2 = document.createElement("input");
 		var oeo = false;
 		radio2.name = "select";
+		radio2.style.fontWeight = "normal";
 		radio2.id = "radio2";
 		radio2.value = oeo;
 		radio2.type = "radio";
@@ -65,6 +67,7 @@
 		var radio3 = document.createElement("input");
 		var other = false;
 		radio3.name = "select";
+		radio3.style.fontWeight = "normal";
 		radio3.value = other;
 		radio3.type = "radio";
 		radio3.id = "radio3";
@@ -89,19 +92,44 @@
 		
 		
 		var div = document.createElement("div");
+		var hint = document.createElement("div");
+		hint.innerHTML = "select the Orion instance: ";
+		hint.style.fontStyle = "normal";
+		hint.style.fontWeight = "lighter";
+		hint.style.paddingTop = "10px";
 		
 		
 		var cloneTh = contentTableRows[contentTableRows.length - 4].children[0];
 		if (cloneTh.innerHTML === "Clone") {
 			cloneTh.innerHTML = "Clone into Orion";
+			cloneTh.style.fontStyle = "bold";
+			cloneTh.style.fontWeight = "bold";
+			cloneTh.style.paddingTop = "10px";
+			cloneTh.style.paddingBottom = "10px";
+			cloneTh.innerHTML.color = "black";
+			cloneTh.appendChild(hint);
 			cloneTh.appendChild(div);
 			div.appendChild(radio1);
-			div.appendChild(document.createTextNode("orionhub.org       "));
+			var node1 = document.createElement("span");
+			node1.innerHTML = "orionhub.org       ";
+			node1.style.fontWeight = "normal";
+			div.appendChild(node1);
 			div.appendChild(radio2);
-			div.appendChild(document.createTextNode("orion.eclipse.org      "));
+			var node2 = document.createElement("span");
+			node2.innerHTML = "orion.eclipse.org      ";
+			node2.style.fontWeight = "normal";
+			div.appendChild(node2);
 			div.appendChild(radio3);
-			div.appendChild(document.createTextNode("clone into"));
+			var node3 = document.createElement("span");
+			node3.innerHTML = "other Orion at ";
+			node3.style.fontWeight = "normal";
+			div.appendChild(node3);
 			div.appendChild(host);
+			
+			var node4 = document.createElement("span");
+			node4.innerHTML = "and click one of the links below to clone ";
+			node4.style.fontWeight = "normal";
+			cloneTh.appendChild(node4);
 
 
 		}
