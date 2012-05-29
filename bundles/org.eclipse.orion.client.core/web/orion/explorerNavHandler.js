@@ -12,11 +12,12 @@
 /*global define window */
 /*jslint regexp:false browser:true forin:true*/
 
-define(['dojo', 'orion/treeModelIterator'], function(dojo, mTreeModelIterator){
+define(['i18n!orion/nls/messages', 'dojo', 'orion/treeModelIterator'], function(messages, dojo, mTreeModelIterator){
 
 var exports = {};
 var userAgent = navigator.userAgent;
-var isPad = userAgent.indexOf("iPad") !== -1;
+var isPad = userAgent.indexOf("iPad") !== -1; //$NON-NLS-0$
+var isMac = window.navigator.platform.indexOf("Mac") !== -1; //$NON-NLS-0$
 
 exports.ExplorerNavHandler = (function() {
 	/**
@@ -36,6 +37,8 @@ exports.ExplorerNavHandler = (function() {
 	    this._selections = [];
 	    
 	    this._currentColumn = 0;
+	    dojo.attr(this.explorer._parentId, "tabIndex", 0); //$NON-NLS-0$
+		dojo.addClass(this.explorer._parentId, "selectionModelContainer"); //$NON-NLS-0$
 		
 		this._modelIterator = new mTreeModelIterator.TreeModelIterator([],
 		   		   {isExpanded: dojo.hitch(this, function(model) {
@@ -58,7 +61,7 @@ exports.ExplorerNavHandler = (function() {
 	    if(!options || options.setFocus !== false){
 	    	parentDiv.focus();
 	    }
-		var keyListener = dojo.connect(parentDiv, "onkeydown", dojo.hitch(this, function (e) {
+		var keyListener = dojo.connect(parentDiv, "onkeydown", dojo.hitch(this, function (e) { //$NON-NLS-0$
             if (e.target) {// Firefox,  Chrome and Safari
                 if(e.target !== parentDiv){
     				return true;
@@ -76,11 +79,11 @@ exports.ExplorerNavHandler = (function() {
 			} else if(e.keyCode === dojo.keys.UP_ARROW){
 				return this.onUpArrow(e);
 			} else if(e.keyCode === dojo.keys.RIGHT_ARROW){
-				if(!e.ctrlKey){
+				if(!this._ctrlKeyOn(e)){
 					return this.onRihgtArrow(e);
 				}
 			} else if(e.keyCode === dojo.keys.LEFT_ARROW){
-				if(!e.ctrlKey){
+				if(!this._ctrlKeyOn(e)){
 					return this.onLeftArrow(e);
 				}
 			} else if(e.keyCode === dojo.keys.SPACE){
@@ -90,14 +93,14 @@ exports.ExplorerNavHandler = (function() {
 			}
 		}));
 		this._listeners.push(keyListener);
-		var l1 = dojo.connect(parentDiv, "onblur", dojo.hitch(this, function (e) {
+		var l1 = dojo.connect(parentDiv, "onblur", dojo.hitch(this, function (e) { //$NON-NLS-0$
 			if(this.explorer.onFocus){
 				this.explorer.onFocus(false);
 			} else {
 				this.toggleCursor(null, false);
 			}
 		}));
-		var l2 = dojo.connect(parentDiv, "onfocus", dojo.hitch(this, function (e) {
+		var l2 = dojo.connect(parentDiv, "onfocus", dojo.hitch(this, function (e) { //$NON-NLS-0$
 			if(this.explorer.onFocus){
 				this.explorer.onFocus(true);
 			} else {
@@ -111,7 +114,7 @@ exports.ExplorerNavHandler = (function() {
 	ExplorerNavHandler.prototype = /** @lends orion.ExplorerNavHandler.ExplorerNavHandler.prototype */ {
 		
 		_init: function(options){
-			this._linearGridMove = true;//temporary. If true right key on the last grid will go to first grid of next row
+			this._linearGridMove = false;//temporary. If true right key on the last grid will go to first grid of next row
 			                            // Left key on the first grid will go to the last line grid of the previous line
 			if(!options){
 				return;
@@ -121,6 +124,10 @@ exports.ExplorerNavHandler = (function() {
 			                                                     //The key event is passed to preventDefaultFunc. It can implement its own behavior based o nteh key event.
 			this.postDefaultFunc = options.postDefaultFunc;//optional callback. If this function provides addtional behaviors after the default behavior.
 			                                               //Some explorers may want to do something else whne the cursor is changed, etc.
+		},
+		
+		_ctrlKeyOn: function(e){
+			return 	isMac ? e.metaKey : e.ctrlKey;
 		},
 		
 		removeListeners: function(){
@@ -139,7 +146,7 @@ exports.ExplorerNavHandler = (function() {
 		},
 		
 		_getEventListeningDiv: function(){
-			if(this.explorer.keyEventListeningDiv && typeof this.explorer.keyEventListeningDiv === "function"){
+			if(this.explorer.keyEventListeningDiv && typeof this.explorer.keyEventListeningDiv === "function"){ //$NON-NLS-0$
 				return this.explorer.keyEventListeningDiv();
 			}
 			return dojo.byId(this.explorer._parentId);
@@ -213,7 +220,10 @@ exports.ExplorerNavHandler = (function() {
 		},
 		
 		setSelection: function(model, toggling){
-			if(this._selectionPolicy === "cursorOnly"){
+			if(this._selectionPolicy === "cursorOnly"){ //$NON-NLS-0$
+				return;
+			}
+			if(!this._isRowSelectable(model)){
 				return;
 			}
 			if(!toggling){
@@ -243,7 +253,7 @@ exports.ExplorerNavHandler = (function() {
 				model = this.currentModel();
 			}
 			var gridChildren = this._getGridChildren(model);
-			if(gridChildren && gridChildren.length > 1){
+			if((gridChildren && gridChildren.length > 1) || (offset === 0 && gridChildren)){
 				if(offset !== 0){
 					this.toggleCursor(model, false);
 				}
@@ -299,11 +309,11 @@ exports.ExplorerNavHandler = (function() {
 		toggleCursor:  function(model, on){
 			var currentRow = this.getRowDiv(model);
 			if(currentRow){
-				dojo.toggleClass(currentRow, "treeIterationCursorRow", on);
+				dojo.toggleClass(currentRow, "treeIterationCursorRow", on); //$NON-NLS-0$
 			}
 			var currentgrid = this.getCurrentGrid(model);
 			if(currentgrid && currentgrid.domNode) {
-				dojo.toggleClass(currentgrid.domNode, "treeIterationCursor", on);
+				dojo.toggleClass(currentgrid.domNode, "treeIterationCursor", on); //$NON-NLS-0$
 			}
 		},
 		
@@ -393,16 +403,45 @@ exports.ExplorerNavHandler = (function() {
 			}
 		},
 		
+		_vpWidth: function() {
+			return window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
+		},
+		
+		_vpHeight: function(){
+			return window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
+		},
+		
+		_getToolBarHeight: function(toolBarId){
+			if(dojo.byId(toolBarId)){
+				mBox = dojo.marginBox(toolBarId);
+				if(mBox){
+					return mBox.h;
+				}
+			}
+			return 0;
+		},
+		
 		_visible: function(rowDiv) {
 			if (rowDiv.offsetWidth === 0 || rowDiv.offsetHeight === 0) {
 				return false;
 			}
+			
+			var headerHeight = 0;
+			headerHeight += this._getToolBarHeight("staticBanner");
+			headerHeight += this._getToolBarHeight("titleArea");
+			headerHeight += this._getToolBarHeight("pageToolbar");
+			
 		    var parentNode = this._getEventListeningDiv();
-			var parentRect = parentNode.getClientRects()[0],
-			rects = rowDiv.getClientRects();
+			var parentRect = parentNode.getClientRects()[0];
+			var vPortRect = {top: headerHeight, left: 0, bottom : this._vpHeight(), right: this._vpWidth()};
+			
+			var vTop = parentRect.top >  vPortRect.top ? parentRect.top :  vPortRect.top;
+			var vBottom = parentRect.bottom <  vPortRect.bottom ? parentRect.bottom :  vPortRect.bottom;
+
+			var rects = rowDiv.getClientRects();
 			for (var i = 0, l = rects.length; i < l; i++) {
 				var r = rects[i];
-			    var in_viewport = (r.top >= parentRect.top && r.top <= parentRect.bottom && r.bottom >= parentRect.top && r.bottom <= parentRect.bottom);
+			    var in_viewport = (r.top >= vTop && r.top <= vBottom && r.bottom >= vTop && r.bottom <= vBottom);
 			    if (in_viewport ) {
 					return true;
 			    }
@@ -416,7 +455,7 @@ exports.ExplorerNavHandler = (function() {
 			}
 			var rowDiv = this.getRowDiv(model);
 			if(rowDiv){
-				dojo.toggleClass(rowDiv, "checkedRow", this._inSelection(model) < 0);
+				dojo.toggleClass(rowDiv, "checkedRow", this._inSelection(model) < 0); //$NON-NLS-0$
 			}
 		},
 		
@@ -439,7 +478,7 @@ exports.ExplorerNavHandler = (function() {
 			this.cursorOn(model);
 			if(isPad){
 				this.setSelection(model, true);
-			} else if(mouseEvt.ctrlKey){
+			} else if(this._ctrlKeyOn(mouseEvt)){
 				this.setSelection(model, true);
 			} else if(mouseEvt.shiftKey && this._lastSelection){
 				var scannedSel = this._modelIterator.scan(this._lastSelection, model);
@@ -464,7 +503,7 @@ exports.ExplorerNavHandler = (function() {
 		//If shift key is on, it toggles the check box and iterates backward.
 		onUpArrow: function(e) {
 			this.iterate(false, false, e.shiftKey);
-			if(!e.ctrlKey && !e.shiftKey){
+			if(!this._ctrlKeyOn(e) && !e.shiftKey){
 				this.setSelection(this.currentModel(), false);
 			}
 			e.preventDefault();
@@ -475,7 +514,7 @@ exports.ExplorerNavHandler = (function() {
 		//If shift key is on, it toggles the check box and iterates forward.
 		onDownArrow: function(e) {
 			this.iterate(true, false, e.shiftKey);
-			if(!e.ctrlKey && !e.shiftKey){
+			if(!this._ctrlKeyOn(e) && !e.shiftKey){
 				this.setSelection(this.currentModel(), false);
 			}
 			e.preventDefault();
@@ -485,7 +524,7 @@ exports.ExplorerNavHandler = (function() {
 		//Left arrow key collapses the current row. If current row is not expandable(e.g. a file in file navigator), move the cursor to its parent row.
 		//If current row is expandable and expanded, collapse it. Otherwise move the cursor to its parent row.
 		onLeftArrow:  function(e) {
-			if(!e.ctrlKey && this.moveColumn(null, -1)){
+			if(!this._ctrlKeyOn(e) && this.moveColumn(null, -1)){
 				e.preventDefault();
 				return true;
 			}
@@ -502,15 +541,16 @@ exports.ExplorerNavHandler = (function() {
 			}
 			if(!this._modelIterator.topLevel(curModel)){
 				this.cursorOn(curModel.parent);
+				this.setSelection(curModel.parent, false);
 			//The cursor is now on a top level item which is collapsed. We need to ask the explorer is it wants to scope up.	
-			} else if (this.explorer.scopeUp && typeof this.explorer.scopeUp === "function"){
+			} else if (this.explorer.scopeUp && typeof this.explorer.scopeUp === "function"){ //$NON-NLS-0$
 				this.explorer.scopeUp();
 			}
 		},
 		
 		//Right arrow key expands the current row if it is expandable and collapsed.
 		onRihgtArrow: function(e) {
-			if(!e.ctrlKey && this.moveColumn(null, 1)){
+			if(!this._ctrlKeyOn(e) && this.moveColumn(null, 1)){
 				e.preventDefault();
 				return true;
 			}
@@ -526,6 +566,10 @@ exports.ExplorerNavHandler = (function() {
 				}
 			}
 		},
+		
+		_isRowSelectable: function(model){
+			return this.explorer.isRowSelectable ? this.explorer.isRowSelectable(model) : true;
+		},
 
 		//Space key toggles the check box on the current row if the renderer uses check box
 		onSpace: function(e) {
@@ -538,15 +582,15 @@ exports.ExplorerNavHandler = (function() {
 			var currentGrid = this.getCurrentGrid(this._modelIterator.cursor());
 			if(currentGrid){
 				if(currentGrid.widget){
-					if(typeof currentGrid.onClick === "function"){
+					if(typeof currentGrid.onClick === "function"){ //$NON-NLS-0$
 						currentGrid.onClick();
-					} else if(typeof currentGrid.widget.focus === "function"){
+					} else if(typeof currentGrid.widget.focus === "function"){ //$NON-NLS-0$
 						currentGrid.widget.focus();
 					}
 				} else {
-					var evt = document.createEvent("MouseEvents");
-					evt.initMouseEvent("click", true, true, window,
-							0, 0, 0, 0, 0, e.ctrlKey, false, false, false, 0, null);
+					var evt = document.createEvent("MouseEvents"); //$NON-NLS-0$
+					evt.initMouseEvent("click", true, true, window, //$NON-NLS-0$
+							0, 0, 0, 0, 0, this._ctrlKeyOn(e), false, false, false, 0, null);
 					currentGrid.domNode.dispatchEvent(evt);
 				}
 				return;
@@ -558,7 +602,7 @@ exports.ExplorerNavHandler = (function() {
 				}
 				var div = this.explorer.renderer.getRowActionElement(this.model.getId(curModel));
 				if(div.href){
-					if(e.ctrlKey){
+					if(this._ctrlKeyOn(e)){
 						window.open(div.href);
 					} else {
 						window.location.href = div.href;

@@ -14,7 +14,7 @@ define(['orion/textview/eventTarget', 'orion/preferences'], function(mEventTarge
 var PreferencesService = mPreferences.PreferencesService;
 var ServiceTracker, ManagedServiceTracker, ConfigAdminFactory, ConfigStore, ConfigAdminImpl, ConfigImpl;
 
-var PROPERTY_PID = 'pid';
+var PROPERTY_PID = 'pid'; //$NON-NLS-0$
 
 /**
  * @name orion.cm.impl.ServiceTracker
@@ -53,11 +53,11 @@ ServiceTracker = /** @ignore */ (function() {
 		};
 		this.close = function() {
 			if (state !== OPENED) {
-				throw 'Already closed';
+				throw 'Already closed'; //$NON-NLS-0$
 			}
 			state = CLOSED;
-			serviceRegistry.removeEventListener('serviceAdded', addedListener);
-			serviceRegistry.removeEventListener('serviceRemoved', removedListener);
+			serviceRegistry.removeEventListener('serviceAdded', addedListener); //$NON-NLS-0$
+			serviceRegistry.removeEventListener('serviceRemoved', removedListener); //$NON-NLS-0$
 			addedListener = null;
 			removedListener = null;
 			var self = this;
@@ -76,7 +76,7 @@ ServiceTracker = /** @ignore */ (function() {
 		};
 		this.open = function() {
 			if (state !== CLOSED) {
-				throw 'Already open';
+				throw 'Already open'; //$NON-NLS-0$
 			}
 			state = OPENED;
 			var self = this;
@@ -90,8 +90,8 @@ ServiceTracker = /** @ignore */ (function() {
 					remove.call(self, serviceRef);
 				}
 			};
-			serviceRegistry.addEventListener('serviceAdded', addedListener);
-			serviceRegistry.addEventListener('serviceRemoved', removedListener);
+			serviceRegistry.addEventListener('serviceAdded', addedListener); //$NON-NLS-0$
+			serviceRegistry.addEventListener('serviceRemoved', removedListener); //$NON-NLS-0$
 			serviceRegistry.getServiceReferences(serviceName).forEach(function(serviceRef) {
 				add.call(self, serviceRef);
 			});
@@ -108,7 +108,7 @@ ServiceTracker = /** @ignore */ (function() {
  * @private
  */
 ManagedServiceTracker = /** @ignore */ function(serviceRegistry, store) {
-	ServiceTracker.call(this, serviceRegistry, 'orion.cm.managedservice');
+	ServiceTracker.call(this, serviceRegistry, 'orion.cm.managedservice'); //$NON-NLS-0$
 
 	var managedServiceRefs = {};
 	var managedServices = {};
@@ -217,7 +217,7 @@ ConfigAdminFactory = /** @ignore */ (function() {
 			return this.store.initialize().then(function() {
 				if (!self.serviceRegistered) {
 					// TODO don't register this ourself
-					self.serviceRegistry.registerService('orion.cm.configadmin', self.configAdmin);
+					self.serviceRegistry.registerService('orion.cm.configadmin', self.configAdmin); //$NON-NLS-0$
 				}
 				return self.configAdmin;
 			});
@@ -266,7 +266,7 @@ ConfigStore = /** @ignore */ (function() {
 		this.configs = {};
 		this.pref = null;
 		var self = this;
-		this.initPromise = prefsService.getPreferences('cm/configurations', PreferencesService.USER_SCOPE).then(
+		this.initPromise = prefsService.getPreferences('cm/configurations', PreferencesService.USER_SCOPE).then( //$NON-NLS-0$
 			function(prefNode) {
 				self.pref = prefNode;
 				prefNode.keys().forEach(function(pid) {
@@ -334,7 +334,7 @@ ConfigImpl = /** @ignore */ (function() {
 	function ConfigImpl(factory, store, pidOrProps) {
 		this.factory = factory;
 		this.store = store;
-		if (typeof pidOrProps === 'object') {
+		if (typeof pidOrProps === 'object') { //$NON-NLS-0$
 			this.pid = pidOrProps[PROPERTY_PID];
 			setProperties(this, pidOrProps);
 		} else {
@@ -343,11 +343,6 @@ ConfigImpl = /** @ignore */ (function() {
 		}
 	}
 	ConfigImpl.prototype = {
-		'delete': function() {
-			var self = this;
-			this.store.remove(this.pid);
-			self.factory.notifyDeleted(self);
-		},
 		getPid: function() {
 			return this.pid;
 		},
@@ -358,6 +353,11 @@ ConfigImpl = /** @ignore */ (function() {
 				props[PROPERTY_PID] = this.pid;
 			}
 			return props;
+		},
+		remove: function() { //$NON-NLS-0$
+			var self = this;
+			this.store.remove(this.pid);
+			self.factory.notifyDeleted(self);
 		},
 		update: function(props) {
 			setProperties(this, props);
@@ -386,6 +386,12 @@ ConfigImpl = /** @ignore */ (function() {
 	 * @methodOf orion.cm.Configuration.prototype
 	 * @returns {orion.cm.ConfigurationProperties} A private copy of this Configuration's properties, or <code>null</code>
 	 * if the configuration has never been updated.
+	 */
+	/**
+	 * @name remove
+	 * @methodOf orion.cm.Configuration.prototype
+	 * Deletes this Configuration. Any {@link orion.cm.ManagedService} that registered interest in this Configuration's 
+	 * PID will have its {@link orion.cm.ManagedService#updated} method called with <code>null</code> properties. 
 	 */
 	/**
 	 * @name update

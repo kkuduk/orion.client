@@ -6,7 +6,8 @@ html {
 html, body {
 	margin: 0;
 	padding: 0;
-	font: 8pt Verdana,Arial,Helvetica,Myriad,Tahoma,clean,sans-serif; 
+	font: 8pt Lucida Sans Unicode,Lucida Grande,Verdana,Arial,Helvetica,Myriad,Tahoma,clean,sans-serif; 
+	min-width:900px;
 }
 
 .orionPage {
@@ -64,13 +65,10 @@ a:hover {
 	vertical-align: baseline;
 }
 
+/* These classes are used pervasively in the UI to achieve left/right floats.  Please do not add extra styling to
+   to these classes, but rather add additional classes as needed for non-float needs.
+*/
 .layoutLeft {
-	float: left;
-	margin: 0;
-	margin-top:5px !important;
-}
-
-.layoutLeftBanner {
 	float: left;
 	margin: 0;
 }
@@ -122,24 +120,23 @@ a:hover {
 }
 
 .logo {
-	padding-top: 4px;
+	padding-top: 6px;
 	padding-right:5px;
 }
 
 .primaryNav {
 	font-size: 10px;
 	font-weight:bold;
-	color: #DDD;
-	padding-top: 6px;
+	color: #BFBFBF;
+	padding-top: 7px;
 	vertical-align: baseline;
 }
 
 .primaryNav a {
 	font-size: 10px;
-	color: #DDD;
+	color: #BFBFBF;
 	margin-right: 6px;
-	margin-left: 6px;
-	padding-top: 6px;
+	margin-left: 6px; 
 	vertical-align: baseline;
 	text-decoration: none;
 }
@@ -179,21 +176,8 @@ a:hover {
 }
 
 .taskDescription {
-	font: 8pt Verdana, Arial,Helvetica,Myriad,Tahoma,clean,sans-serif;
+	font-size: 8pt;
 	padding: 8px;
-}
-
-.sectionActions {
-	font: 8pt Verdana, Arial,Helvetica,Myriad,Tahoma,clean,sans-serif;
-	margin-top: 2px;
-	vertical-align: baseline;
-}
-
-.sectionAnchor{
-	line-height:16px;
-	font-size:10pt;
-	color: #444;
-	font-weight:normal;
 }
 
 .pageNavigationActions {
@@ -222,16 +206,17 @@ a:hover {
 
 .dismiss {
 	border: 1px solid transparent;
+    border-radius: 2px;
 	cursor: pointer;
 	padding: 1px;
 	font-size: 8pt;
+	margin: 0;
 	margin-left: 8px;
 	vertical-align: middle;
 }
 .dismiss:hover {
 	background-color: #e6e6e6;
 	border: 1px solid #808080;
-    border-radius: 2px;
 }
 
 .parameterInput {
@@ -250,6 +235,7 @@ a:hover {
 
 .parameterInputtextarea {
 	vertical-align: top;
+	width: 50em;
 }
 
 .navTableHeading {
@@ -542,19 +528,20 @@ a:hover {
 	margin: 0;
 	border: 0;
 	background-color: #2e2e2e;
-	background: -webkit-linear-gradient(top, #7D7E7D 0%, #0E0E0E 100%);
-	background: -moz-linear-gradient(top, #7D7E7D 0%, #0E0E0E 100%);
-	
-	height: 24px;
+/*	background: -webkit-linear-gradient(top, #7D7E7D 0%, #0E0E0E 100%);
+	background: -moz-linear-gradient(top, #7D7E7D 0%, #0E0E0E 100%);	Not sure about gradient - Linda to advise */
+	height: 28px;
 }
 
 .titleArea {
     margin: 0;
+    margin-top:5px;
     border: 0;
     filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#ffffff', endColorstr='#f6f6f6'); /* IE */
     background: -webkit-gradient(linear, left top, left bottom, from(#ffffff), to(#f6f6f6));
     background: -moz-linear-gradient(top,  #ffffff,  #f6f6f6);
     border-bottom: 1px solid #EEE;
+    min-height:20px;
 }
 
 .slideContainer {
@@ -563,11 +550,8 @@ a:hover {
 	clear: both;
 	float: left;
 	border-radius: 2px;
-	margin-left: 4px;
-	margin-right: 4px;
-	margin: 2px;
+	margin: 8px;
 	display: none;
-	padding: 3px;
 	vertical-align:middle;
 	font-size:11px;
 	font-weight:bold;
@@ -608,14 +592,49 @@ a:hover {
 	height: auto;
 }
 
+.bannerMenu {
+	margin: 0;
+	margin-left: 8px;
+	margin-right: 8px;
+	font-size: 7pt;
+	display: inline-block;
+	padding-tp:0 !important;
+	vertical-align: baseline;
+}
+
+.bannerButton {
+	border: 1px solid transparent;
+	text-align: center;
+	vertical-align: baseline;
+    cursor: pointer;
+    display: inline-block;
+    border-radius:3px;
+    margin: 2px;
+    padding: 2px;
+}
+
+.bannerButton:hover {
+	background-color: #e6e6e6;
+	border: 1px solid #808080;
+}
+
 .searchbox {
-	background: white;
-	border: 1px solid #CCC;
+	background: url('../images/glass.png') no-repeat #777 4px 4px;
+	border: 1px solid #555;
 	font-size: 11px;
-	min-width: 15em;
-	margin-top: 3px;
-	padding: 2px;
-	border-radius: 3px;
+	width: 15em;
+	height: 18px;
+	border-radius: 10px;
+	color:#444;
+	padding:0;
+	padding-left:17px;
+	margin-left:5px;
+	margin-top:4px;
+}
+
+.searchbox:focus{
+	color: white;
+	outline:none;
 }
 
 .toolbarButton {
@@ -686,7 +705,7 @@ a:hover {
 }
 
 .checkedRow {
-	background-color: #FFC !important; /* was e3e3e3 */
+	background-color: #fee49a !important; /* was e3e3e3 */
 }
 
 .testResult {
@@ -710,6 +729,7 @@ a:hover {
 	border-spacing: 0;
 	min-width: 600px;
 	width:100%;
+	padding-right:4px;
 }
 
 .favoritesTable {
@@ -778,8 +798,18 @@ a:hover {
 	background-color: #EAF2FE;
 }
 
+.selectionModelContainer {
+	outline: none;
+	-webkit-touch-callout: none;
+	-webkit-user-select: none;
+	-khtml-user-select: none;
+	-moz-user-select: none;
+	-ms-user-select: none;
+	user-select: none;
+}
+
 .treeIterationCursor {
-	outline: #CCC 1px dotted;
+	outline: #666 1px dotted !important;
 	border-radius:4px;
 }
 
