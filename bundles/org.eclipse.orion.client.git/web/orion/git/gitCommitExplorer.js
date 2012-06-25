@@ -12,8 +12,8 @@
 /*global define console document Image*/
 
 define(['i18n!git/nls/gitmessages', 'dojo', 'orion/section', 'orion/explorer', 'orion/i18nUtil', 'orion/globalCommands', 'orion/compare/diff-provider', 
-        'orion/compare/compare-container', 'orion/breadcrumbs', 'orion/git/gitCommands', 'orion/navigationUtils'], 
-		function(messages, dojo, mSection, mExplorer, i18nUtil, mGlobalCommands, mDiffProvider , mCompareContainer, mBreadcrumbs, mGitCommands, mNavUtils) {
+        'orion/compare/compare-container', 'orion/git/gitCommands', 'orion/navigationUtils'], 
+		function(messages, dojo, mSection, mExplorer, i18nUtil, mGlobalCommands, mDiffProvider , mCompareContainer, mGitCommands, mNavUtils) {
 	var exports = {};
 
 	exports.GitCommitExplorer = (function() {
@@ -33,6 +33,7 @@ define(['i18n!git/nls/gitmessages', 'dojo', 'orion/section', 'orion/explorer', '
 			this.selectionToolsId = selectionToolsId;
 			this.checkbox = false;
 			this.actionScopeId = actionScopeId;
+			mExplorer.createExplorerCommands(commandService);
 		}
 		
 		GitCommitExplorer.prototype.handleError = function(error) {
@@ -107,10 +108,11 @@ define(['i18n!git/nls/gitmessages', 'dojo', 'orion/section', 'orion/explorer', '
 		
 		GitCommitExplorer.prototype.initTitleBar = function(commit, repository){
 			var that = this;
-			var item = {};
+			var item;
 			var pageTitle;
 			
 			if (commit){
+				item = {};
 				item.Name = commit.Name;
 				item.Parents = [];
 				item.Parents[0] = {};
@@ -119,40 +121,31 @@ define(['i18n!git/nls/gitmessages', 'dojo', 'orion/section', 'orion/explorer', '
 				item.Parents[0].ChildrenLocation = repository.Location;
 				item.Parents[1] = {};
 				item.Parents[1].Name = messages["Repositories"];
-				pageTitle = i18nUtil.formatMessage(messages["0 on 1 - Git"], commit.Name, repository.Name);
-			} else {
-				item.Name = "";
-				pageTitle = messages["Git"];
 			}
-			
-			document.title = pageTitle;
-			
-			var location = dojo.byId("location"); //$NON-NLS-0$
-			new mBreadcrumbs.BreadCrumbs({
-				container: location,
-				resource: item,
-				makeHref:function(seg, location){
-					that.makeHref(seg, location);
-				}
-			});		
-			mGlobalCommands.setPageTarget(repository, this.registry, this.commandService);
+			mGlobalCommands.setPageTarget({task: "Commit", target: repository, 
+				breadcrumbTarget: item, 
+				makeBreadcrumbLink: function(seg, location) {
+					seg.href = "/git/git-repository.html#" + (location ? location : ""); //$NON-NLS-0$
+				},
+				serviceRegistry: this.registry, commandService: this.commandService});
 		};
 		
-		GitCommitExplorer.prototype.makeHref = function(seg, location) {
-			seg.href = "/git/git-repository.html#" + (location ? location : ""); //$NON-NLS-0$
-		};
-
 		GitCommitExplorer.prototype.displayCommit = function(commit){
 			
 			var tableNode = dojo.byId( 'table' );	 //$NON-NLS-0$
 			dojo.empty( tableNode );
-			
-			new mSection.Section(tableNode, {
-				id: "commitSection", //$NON-NLS-0$
-				title: (commit ? messages["Commit Details"] :  messages["No Commits"]),
-				iconClass: "gitImageSprite git-sprite-modification", //$NON-NLS-0$
-				content: '<list id="commitNode"></list>' //$NON-NLS-0$
-			});
+						
+			if (!commit){
+				var titleWrapper = new mSection.Section(tableNode, {
+					id: "commitSection", //$NON-NLS-0$
+					title: messages["No Commits"],
+					iconClass: "core-sprite-file" //$NON-NLS-0$
+				});
+				return;
+			}
+
+			var contentParent = dojo.create("div", {"role": "region", "class":"sectionTable"}, tableNode, "last");
+			contentParent.innerHTML = '<list id="commitNode" class="mainPadding"></list>'; //$NON-NLS-0$
 
 		    var list = dojo.byId( "commitNode" );		 //$NON-NLS-0$
 			
@@ -288,6 +281,9 @@ define(['i18n!git/nls/gitmessages', 'dojo', 'orion/section', 'orion/explorer', '
 				preferenceService: this.registry.getService("orion.core.preference") //$NON-NLS-0$
 			});
 			
+			this.commandService.registerCommandContribution(section.actionsNode.id, "orion.explorer.expandAll", 100); //$NON-NLS-1$ //$NON-NLS-0$
+			this.commandService.registerCommandContribution(section.actionsNode.id, "orion.explorer.collapseAll", 200); //$NON-NLS-1$ //$NON-NLS-0$
+
 			var sectionItemActionScopeId = "diffSectionItemActionArea"; //$NON-NLS-0$
 			
 			DiffModel = (function() {
@@ -306,7 +302,7 @@ define(['i18n!git/nls/gitmessages', 'dojo', 'orion/section', 'orion/explorer', '
 						} else if (parentItem.Type === "Diff") {
 							if(!parentItem.children){//lazy creation, this is required for selection model to be able to trverse into children
 								parentItem.children = [];
-								parentItem.children.push({parent: parentItem}); //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$
+								parentItem.children.push({parent: parentItem, DiffLocation: parentItem.DiffLocation}); //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$
 							}
 							onComplete(parentItem.children); //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$
 							//onComplete([{parent: parentItem}]); //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$
@@ -346,7 +342,7 @@ define(['i18n!git/nls/gitmessages', 'dojo', 'orion/section', 'orion/explorer', '
 							var div = dojo.create( "div", {"class" : "sectionTableItem"}, td ); //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$
 							
 							var path = item.OldPath;
-						    var sprite = "git-sprite-modification"; //$NON-NLS-0$
+						    var sprite = "git-sprite-file"; //$NON-NLS-0$
 							if (item.ChangeType === "ADD"){ //$NON-NLS-0$
 								path = item.NewPath;
 								sprite = "git-sprite-addition"; //$NON-NLS-0$
@@ -373,17 +369,21 @@ define(['i18n!git/nls/gitmessages', 'dojo', 'orion/section', 'orion/explorer', '
 							window.setTimeout(function(){
 								var diffProvider = new mCompareContainer.DefaultDiffProvider(that.registry);
 								var diffOptions = {
-									navGridHolder: navGridHolder,
+									gridRenderer: {
+										navGridHolder: navGridHolder,
+										additionalCmdRender: function(gridHolder){
+											dojo.empty(diffActionWrapper.id);
+											that.commandService.renderCommands("itemLevelCommands", diffActionWrapper.id, item.parent, that, "tool", false, gridHolder); //$NON-NLS-0$
+										},
+										before: true
+									},
 									commandSpanId: compareWidgetActionWrapper.id,
 									diffProvider: diffProvider,
 									hasConflicts: false,
 									readonly: true,
 									editableInComparePage: true,
 									complexURL: item.parent.DiffLocation,
-									callback : function(){
-										dojo.empty(diffActionWrapper.id);
-										that.commandService.renderCommands("itemLevelCommands", diffActionWrapper.id, item.parent, that, "tool", false); //$NON-NLS-0$
-									}
+									callback : function(){}
 								};
 								
 								var inlineCompareContainer = new mCompareContainer.toggleableCompareContainer(that.registry, "diffArea_" + item.parent.DiffLocation, "inline", diffOptions); //$NON-NLS-1$ //$NON-NLS-0$
@@ -428,18 +428,25 @@ define(['i18n!git/nls/gitmessages', 'dojo', 'orion/section', 'orion/explorer', '
 					this.selection = selection;
 					this.actionScopeId = actionScopeId;
 					this.renderer = new DiffRenderer({registry: this.registry, actionScopeId: sectionItemActionScopeId, cachePrefix: "DiffNavigator", checkbox: false}, this); //$NON-NLS-0$
-					this.createTree(this.parentId, new DiffModel(), {selectionPolicy: "cursorOnly"});
+					this.createTree(this.parentId, new DiffModel(), {/*selectionPolicy: "cursorOnly"*/});
 				}
 				
 				DiffNavigator.prototype = new mExplorer.Explorer();
 			
+				//provide to the selection model that if a row is selectable
 				DiffNavigator.prototype.isRowSelectable = function(modelItem){
-					return modelItem.Type === "Diff";
+					return false;
 				};
+				//provide to the expandAll/collapseAll commands
+				DiffNavigator.prototype.getItemCount  = function(){
+					return diffs.length;
+				};
+				
 				return DiffNavigator;
 			}());
 			
-			new DiffNavigator(this.registry, null, "diffNode", sectionItemActionScopeId); //$NON-NLS-0$
+			var diffnavigator = new DiffNavigator(this.registry, null, "diffNode", sectionItemActionScopeId); //$NON-NLS-0$
+			this.commandService.renderCommands(section.actionsNode.id, section.actionsNode.id, diffnavigator, diffnavigator, "button"); //$NON-NLS-0$
 		};
 
 		return GitCommitExplorer;

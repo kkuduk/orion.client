@@ -27,7 +27,7 @@ define(['i18n!orion/nls/messages', 'require'],
 	'<header role="banner">' + //$NON-NLS-0$
 		//Top row:  Logo + discovery links + user
 		'<div id="staticBanner" class="layoutBlock topRowBanner">' + //$NON-NLS-0$
-			'<a id="home" class="layoutLeft logo" href="' + require.toUrl("navigate/table.html") + '" aria-label="'+messages['Orion Home']+'"><img src="' + require.toUrl("images/orion-transparent.png") + '" alt="'+messages['Orion Logo']+'"/></a>' + //$NON-NLS-8$ //$NON-NLS-6$ //$NON-NLS-5$ //$NON-NLS-4$ //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$
+			'<a id="home" class="layoutLeft logo" href="' + require.toUrl("navigate/table.html") + '" aria-label="'+messages['Orion Home']+'"></a>' + //$NON-NLS-8$ //$NON-NLS-6$ //$NON-NLS-5$ //$NON-NLS-4$ //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$
 			'<nav id="primaryNav" class="layoutLeft primaryNav" role="navigation"></nav>' + //$NON-NLS-0$
 			'<div class="layoutRight">' + //$NON-NLS-0$
 				'<div id="globalActions" class="spacingLeft layoutLeft"></div>' + //$NON-NLS-0$
@@ -40,8 +40,7 @@ define(['i18n!orion/nls/messages', 'require'],
 		//Title area
 		'<div id="titleArea" class="layoutBlock titleArea">' + //$NON-NLS-0$
 			'<div class="layoutLeft pageTitle"></div>' + //$NON-NLS-0$
-			
-			'<div id="location" style="padding-bottom:5px;display:inline;" class="clear currentLocation"></div>' + //$NON-NLS-0$
+			'<div class="clear" style="padding-bottom:5px;display:inline;"><span id="location" class="currentLocation"></span><span id="dirty" class="currentLocation"></span></div>' + //$NON-NLS-0$
 			'<div class="layoutRight pageNav">' + //$NON-NLS-0$
 				'<span id="pageFavorite" tabindex="0" role="button" aria-label="'+messages['Add this page to the favorites list']+'" class="spacingLeft layoutLeft imageSprite core-sprite-favorite_sml"></span>' + //$NON-NLS-2$ //$NON-NLS-0$
 			'</div>' + //$NON-NLS-0$
@@ -52,13 +51,13 @@ define(['i18n!orion/nls/messages', 'require'],
 	// BEGIN BOTTOM BANNER FRAGMENT
 	// styling of the surrounding div (text-align, etc) is in ide.css "footer"
 	var bottomHTMLFragment = 
-		'<footer class="layoutBlock" role="contentinfo">' + //$NON-NLS-0$
+		'<footer id="footerContent" class="layoutBlock" role="contentinfo">' + //$NON-NLS-0$
 			'<div class="footerBlock">' + //$NON-NLS-0$
 				messages['Orion is in Beta. Please try it out but BEWARE your data may be lost.'] +
 			'</div>' + //$NON-NLS-0$
 			'<div class="footerRightBlock">' + //$NON-NLS-0$
 				'<a href="http://wiki.eclipse.org/Orion/FAQ" target="_blank">'+messages['FAQ']+'</a> | ' +  //$NON-NLS-0$
-				'<a href="https://bugs.eclipse.org/bugs/enter_bug.cgi?product=Orion&version=0.4" target="_blank">'+messages['Report a Bug']+'</a> | ' + //$NON-NLS-0$
+				'<a href="https://bugs.eclipse.org/bugs/enter_bug.cgi?product=Orion&version=0.5" target="_blank">'+messages['Report a Bug']+'</a> | ' + //$NON-NLS-0$
 				'<a href="http://www.eclipse.org/legal/privacy.php" target="_blank">'+messages['Privacy Policy']+'</a> | ' +  //$NON-NLS-0$
 				'<a href="http://www.eclipse.org/legal/termsofuse.php" target="_blank">'+messages['Terms of Use']+'</a> | '+  //$NON-NLS-0$
 				'<a href="http://www.eclipse.org/legal/copyright.php" target="_blank">'+messages['Copyright Agent']+'</a>'+ //$NON-NLS-0$

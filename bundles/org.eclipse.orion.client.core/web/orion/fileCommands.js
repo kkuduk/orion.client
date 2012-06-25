@@ -69,13 +69,13 @@ define(['i18n!orion/navigate/nls/messages', "require", "dojo", "orion/util", "or
 	 * @function
 	 */
 	fileCommandUtils.updateNavTools = function(registry, explorer, toolbarId, selectionToolbarId, item) {
+		var service = registry.getService("orion.page.command"); //$NON-NLS-0$
 		var toolbar = dojo.byId(toolbarId);
 		if (toolbar) {
-			dojo.empty(toolbar);
+			service.destroy(toolbar);
 		} else {
 			throw messages["could not find toolbar "] + toolbarId;
 		}
-		var service = registry.getService("orion.page.command"); //$NON-NLS-0$
 		// close any open slideouts because if we are retargeting the command
 		if (item.Location !== lastItemLoaded.Location) {
 			service.closeParameterCollector();
@@ -90,8 +90,8 @@ define(['i18n!orion/navigate/nls/messages', "require", "dojo", "orion/util", "or
 		if (selectionToolbarId) {
 			var selectionTools = dojo.byId(selectionToolbarId);
 			if (selectionTools) {
-				dojo.empty(selectionToolbarId);
-				service.renderCommands(selectionToolbarId, selectionToolbarId, null, explorer, "button");  //$NON-NLS-0$
+				service.destroy(selectionTools);
+				service.renderCommands(selectionToolbarId, selectionTools, null, explorer, "button");  //$NON-NLS-0$
 			}
 		}
 		
@@ -102,8 +102,8 @@ define(['i18n!orion/navigate/nls/messages', "require", "dojo", "orion/util", "or
 			selectionService.addEventListener("selectionChanged", function(singleSelection, selections) { //$NON-NLS-0$
 				var selectionTools = dojo.byId(selectionToolbarId);
 				if (selectionTools) {
-					dojo.empty(selectionTools);
-					registry.getService("orion.page.command").renderCommands(selectionTools.id, selectionTools, selections, explorer, "button"); //$NON-NLS-1$ //$NON-NLS-0$
+					service.destroy(selectionTools);
+					service.renderCommands(selectionTools.id, selectionTools, selections, explorer, "button"); //$NON-NLS-1$ //$NON-NLS-0$
 				}
 			});
 		}
@@ -192,8 +192,8 @@ define(['i18n!orion/navigate/nls/messages', "require", "dojo", "orion/util", "or
 							}
 							for (var i=0; i < selectedItems.length; i++) {
 								var location = targetFolder.Location;
-								var newName; // intentionally undefined.  Only use if we need.
 								var item = selectedItems[i];
+								var newName = item.Name || null;
 								var func = isCopy ? fileClient.copyFile : fileClient.moveFile;
 								if (isCopy && item.parent && item.parent.Location === location) {
 									newName = window.prompt(dojo.string.substitute(messages["Enter a new name for '${0}'"], [item.Name]), dojo.string.substitute(messages["Copy of ${0}"], [item.Name]));
@@ -632,8 +632,8 @@ define(['i18n!orion/navigate/nls/messages', "require", "dojo", "orion/util", "or
 			tooltip: messages["Clone a git repository"],
 			description: messages["Go to the Orion repositories page to provide a git repository URL.  Once the repository is created, it will appear in the Navigator."],
 			id: "orion.new.gitclone", //$NON-NLS-0$
-			hrefCallback: function(data) {
-				return window.location.protocol + "//" + window.location.host + "/git/git-repository.html#,cloneGitRepository=URL"; //$NON-NLS-0$
+			callback: function(data) {
+				window.location.href = window.location.protocol + "//" + window.location.host + "/git/git-repository.html#,cloneGitRepository=URL"; //$NON-NLS-0$
 			},
 			visibleWhen: canCreateProject
 		});
@@ -817,7 +817,7 @@ define(['i18n!orion/navigate/nls/messages', "require", "dojo", "orion/util", "or
 							}
 							for (var i=0; i<bufferedSelection.length; i++) {
 								var location = bufferedSelection[i].Location;
-								var name = null;
+								var name = bufferedSelection[i].Name || null;
 								if (location) {
 									if (bufferedSelection[i].parent && bufferedSelection[i].parent.Location === item.Location) {
 										name = window.prompt(dojo.string.substitute(messages['Enter a new name for \'${0}\''], [bufferedSelection[i].Name]), dojo.string.substitute(messages['Copy of ${0}'], [bufferedSelection[i].Name]));
@@ -896,33 +896,40 @@ define(['i18n!orion/navigate/nls/messages', "require", "dojo", "orion/util", "or
 			var extensionGroupCreated = false;
 			var selectionGroupCreated = false;
 			var openWithGroupCreated = false;
+			var commandDeferreds = [];
 		
 			for (i=0; i < fileCommands.length; i++) {
 				var commandInfo = fileCommands[i].properties;
 				var service = fileCommands[i].service;
-				var commandOptions = mExtensionCommands._createCommandOptions(commandInfo, service, serviceRegistry, contentTypesCache, true);
-				var command = new mCommands.Command(commandOptions);
-				if (commandInfo.isEditor) {
-					command.isEditor = commandInfo.isEditor;
-				}
-				
-				commandService.addCommand(command);
-				if (!extensionGroupCreated) {
-					extensionGroupCreated = true;
-					commandService.addCommandGroup(selectionToolbarId, "eclipse.fileCommandExtensions", 1000, null, commandGroup); //$NON-NLS-0$
-				}
-				if (!openWithGroupCreated) {
-					openWithGroupCreated = true;
-					commandService.addCommandGroup(selectionToolbarId, "eclipse.openWith", 1000, messages["Open With"], commandGroup + "/eclipse.fileCommandExtensions"); //$NON-NLS-2$ //$NON-NLS-0$
-				}
-				if (commandInfo.isEditor) {
-					commandService.registerCommandContribution(selectionToolbarId, command.id, i, commandGroup + "/eclipse.fileCommandExtensions/eclipse.openWith"); //$NON-NLS-0$
-				} else {
-					commandService.registerCommandContribution(selectionToolbarId, command.id, i, commandGroup + "/eclipse.fileCommandExtensions"); //$NON-NLS-0$
-				}
+				var commandDeferred = mExtensionCommands._createCommandOptions(commandInfo, service, serviceRegistry, contentTypesCache, true);
+				commandDeferreds.push[commandDeferred];
+				commandDeferred.then(dojo.hitch(this,
+						function(i, commandInfo, commandOptions){
+							var command = new mCommands.Command(commandOptions);
+							if (commandInfo.isEditor) {
+								command.isEditor = commandInfo.isEditor;
+							}
+							
+							commandService.addCommand(command);
+							if (!extensionGroupCreated) {
+								extensionGroupCreated = true;
+								commandService.addCommandGroup(selectionToolbarId, "eclipse.fileCommandExtensions", 1000, null, commandGroup); //$NON-NLS-0$
+							}
+							if (!openWithGroupCreated) {
+								openWithGroupCreated = true;
+								commandService.addCommandGroup(selectionToolbarId, "eclipse.openWith", 1000, messages["Open With"], commandGroup + "/eclipse.fileCommandExtensions"); //$NON-NLS-2$ //$NON-NLS-0$
+							}
+							if (commandInfo.isEditor) {
+								commandService.registerCommandContribution(selectionToolbarId, command.id, i, commandGroup + "/eclipse.fileCommandExtensions/eclipse.openWith"); //$NON-NLS-0$
+							} else {
+								commandService.registerCommandContribution(selectionToolbarId, command.id, i, commandGroup + "/eclipse.fileCommandExtensions"); //$NON-NLS-0$
+							}
+						}, i, commandInfo));
 			}
-			fileCommandUtils.updateNavTools(serviceRegistry, explorer, toolbarId, selectionToolbarId, explorer.treeRoot);
-			explorer.updateCommands();
+			new dojo.DeferredList(commandDeferreds).addBoth(function(){
+				fileCommandUtils.updateNavTools(serviceRegistry, explorer, toolbarId, selectionToolbarId, explorer.treeRoot);
+				explorer.updateCommands();
+			});
 
 		}));
 	};
