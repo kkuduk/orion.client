@@ -1,0 +1,27 @@
+<div class="dijitDialog" tabindex="-1" waiRole="dialog" waiState="labelledby-${id}_title" id="GetGitCommitDialog2">
+	<div dojoAttachPoint="titleBar" class="dijitDialogTitleBar">
+		<span dojoAttachPoint="titleNode" class="dijitDialogTitle" id="${id}_title"></span>
+		<span dojoAttachPoint="closeButtonNode" class="dijitDialogCloseIcon" dojoAttachEvent="onclick: onCancel" title="${buttonCancel}">
+			<span dojoAttachPoint="closeText" class="closeText" title="${buttonCancel}">x</span>
+		</span>
+	</div>
+	<div dojoAttachPoint="containerNode" class="dijitDialogPaneContent">
+		<!-- Actual content here -->
+
+				<div style="display: table-row">
+					<div style="display: table-row">
+						<div style="display: table-cell; padding: 1px;" , id = "div1" >
+						</div>
+					</div>
+					<div style="display: table-row; padding: 5px;" >
+						</div>
+						
+					<div style="display: block; padding: 5; clear: both; text-align: right", id = "buttonDiv" >
+						<button dojoAttachPoint="cloneItemButton" id = "btn1" name="btn1" dojoType="dijit.form.Button" type="submit" value="OK" style="padding: 20 0 10 0;" onSubmit="return true;">CLONE
+					</button>
+					<button dojoAttachPoint="cloneItemButton2" dojoType="dijit.form.Button" type="submit" value="OK" style="padding: 20 0 10 0; display: none" >Get Commit
+					</button>
+				</div>
+				</div>
+	</div>
+</div>

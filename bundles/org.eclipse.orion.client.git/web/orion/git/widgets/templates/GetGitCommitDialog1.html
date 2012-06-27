@@ -1,0 +1,30 @@
+<div class="dijitDialog" tabindex="-1" waiRole="dialog" waiState="labelledby-${id}_title">
+	<div dojoAttachPoint="titleBar" class="dijitDialogTitleBar">
+		<span dojoAttachPoint="titleNode" class="dijitDialogTitle" id="${id}_title"></span>
+		<span dojoAttachPoint="closeButtonNode" class="dijitDialogCloseIcon" dojoAttachEvent="onclick: onCancel" title="${buttonCancel}">
+			<span dojoAttachPoint="closeText" class="closeText" title="${buttonCancel}">x</span>
+		</span>
+	</div>
+	<div dojoAttachPoint="containerNode" class="dijitDialogPaneContent">
+		<!-- Actual content here -->
+				<!--div style="text-align: left"-->
+					<div style="padding: 0px; text-align: left;"  , id = "div1">
+					</div>
+					<div style="display: padding: 0px; text-align: left" , id = "buttonDiv" >
+					</div>
+					<div style="display: block; padding: 0px; text-align: left", id = "fetchDiv0" ></div>
+					<div style="display: block; padding: 0px; text-align: left", id = "fetchDiv" >
+					</div>
+					<div style="display: block; padding: 5; clear: both; text-align: right">
+					</div>					
+					<div style="display: block; padding: 5; clear: both; text-align: right">
+					</div>
+					<div style="display: block; margin-top: 10px; clear: both; text-align: left" id="lastDiv">
+					<span style="display: block; padding: 5; clear: both; text-align: left; width: 500px" id="header3">
+					</span>
+					<button dojoAttachPoint="cloneItemButton" id = "btn1" name="btn1" dojoType="dijit.form.Button" type="submit" value="OK" style="padding: 5 0 5 0; float: left" onSubmit="return true;">CLONE
+					</button>
+					</div>
+				<!--/div-->
+	</div>
+</div>

@@ -11,11 +11,11 @@
 
 /*global alert confirm orion window widgets eclipse:true serviceRegistry define */
 /*jslint browser:true eqeqeq:false laxbreak:true */
-define(['i18n!git/nls/gitmessages', 'require', 'dojo', 'orion/commands', 'orion/util', 'orion/git/util', 'orion/compare/compareUtils', 'orion/git/widgets/CloneGitRepositoryDialog', 
+define(['i18n!git/nls/gitmessages', 'require', 'dojo', 'orion/commands', 'orion/util', 'orion/git/util', 'orion/compare/compareUtils','orion/links','orion/git/gitRepositoryExplorer','orion/git/widgets/CloneGitRepositoryDialog', 
         'orion/git/widgets/AddRemoteDialog', 'orion/git/widgets/GitCredentialsDialog', 'orion/widgets/NewItemDialog', 
         'orion/git/widgets/RemotePrompterDialog', 'orion/git/widgets/ApplyPatchDialog', 'orion/git/widgets/OpenCommitDialog', 
-        'orion/git/widgets/ContentDialog', 'orion/git/widgets/CommitDialog'], 
-        function(messages, require, dojo, mCommands, mUtil, mGitUtil, mCompareUtils) {
+        'orion/git/widgets/ContentDialog','orion/git/widgets/GetGitCommitDialog1','orion/git/widgets/GetGitCommitDialog2', 'orion/git/widgets/CommitDialog'], 
+        function(messages, require, dojo, mCommands, mUtil, mGitUtil, mCompareUtils, mLinks, mGitRepositoryExplorer) {
 
 /**
  * @namespace The global container for eclipse APIs.
@@ -96,7 +96,7 @@ var exports = {};
 				onDone(name);
 			}
 		}
-	}
+	};
 
 	exports.handleKnownHostsError = function(serviceRegistry, errorData, options, func){
 		if(confirm(dojo.string.substitute(messages["Would you like to add ${0} key for host ${1} to continue operation? Key fingerpt is ${2}."],
@@ -2162,6 +2162,305 @@ var exports = {};
 		});
 		commandService.addCommand(showContentCommand);
 		
+		var getGitCommitParameters = new mCommands.ParametersDescription([new mCommands.CommandParameter("commitNumber", "text", messages["Commit Data:"])], {hasOptionalParameters: true}); //$NON-NLS-1$ //$NON-NLS-0$
+		
+		var getGitCommitCommand = new mCommands.Command({
+		name : messages["Get Commit"],
+		tooltip: messages["Get the particular git commit"],
+		id : "eclipse.orion.git.getGitCommitCommand", //$NON-NLS-0$
+		imageClass: "git-sprite-apply_patch", //$NON-NLS-0$
+		spriteClass: "gitCommandSprite", //$NON-NLS-0$
+		parameters: getGitCommitParameters,
+		callback: function(data) {
+			var item = data.items;
+			var params = data.parameters.valueFor("commitNumber").split("_");
+			var gitService = serviceRegistry.getService("orion.git.provider");
+			var cloneFunction = function(gitUrl, path, name) {
+				exports.getDefaultSshOptions(serviceRegistry).then(function(options) {
+					var func = arguments.callee;
+					serviceRegistry.getService("orion.page.message").createProgressMonitor(gitService.cloneGitRepository(name, gitUrl, path, explorer.defaultPath, options.gitSshUsername, options.gitSshPassword, options.knownHosts, //$NON-NLS-0$
+							options.gitPrivateKey, options.gitPassphrase),
+							messages["Cloning repository: "] + gitUrl).deferred.then(function(jsonData, secondArg) {
+						exports.handleProgressServiceResponse(jsonData, options, serviceRegistry, function(jsonData) {
+							if (explorer.redisplayClonesList) {
+								dojo.hitch(explorer, explorer.redisplayClonesList)();
+								dojo.hitch(explorer, explorer.changedItem)(item);
+							}
+						}, func, messages['Clone Git Repository']);
+						window.location.href += ",openGitCommit=" + params[1];
+						
+					}, function(jsonData, secondArg) {
+						exports.handleProgressServiceResponse(jsonData, options, serviceRegistry, function() {}, func, messages['Clone Git Repository']);
+					});
+				});
+			};
+			var cloneDialog = new orion.git.widgets.CloneGitRepositoryDialog({
+						serviceRegistry: serviceRegistry,
+						fileClient: fileClient,
+						url: params[0], //$NON-NLS-0$
+						alwaysShowAdvanced: false,
+						func: cloneFunction
+					});
+					
+			var openCommitDialog = new orion.git.widgets.OpenCommitDialog(
+							{repositories: data.items, 
+							serviceRegistry: serviceRegistry, 
+							commitName: params[1]} //$NON-NLS-0$
+						);
+			
+			
+			var item = forceSingleItem(data.items);
+			var repositories = data.items;
+			var repoNumber = repositories.length;
+			var parameters = data.parameters.valueFor("commitNumber");
+			var commitNumber = data.parameters.valueFor("commitNumber");
+			var found = false;
+			var reposWithRemote = [];
+			var remotes = [];
+			var indexes = [];
+			var remotesWithComit = [];
+			var remotesNoCommit = [];
+			var commitUrls = [];
+			var visited = 0;
+			var test = data.items[3];
+			var func = function (){
+				return data;
+			};
+			var findCommitLocation = function (repositories, commitName, deferred) {
+					if (deferred == null)
+						deferred = new dojo.Deferred();
+					
+					if (repositories.length > 0) {
+						serviceRegistry.getService("orion.git.provider").doGitLog( //$NON-NLS-0$
+							"/gitapi/commit/" + params[1] + repositories[0].ContentLocation + "?page=1&pageSize=1", null, null, messages['Looking for the commit']).then( //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$
+							function(resp){
+								deferred.callback(resp.Children[0].Location);
+							},
+							function(error) {
+								findCommitLocation(repositories.slice(1), commitName, deferred);
+							}
+						);
+					} else {
+						deferred.errback();
+					}
+					
+					return deferred;
+				};
+					
+			
+			
+		var findRemote = function (repositories, commitNumber, deferred) {
+				var ok = false;
+				var that = this;
+				if (deferred == null)
+					deferred = new dojo.Deferred();					 
+				if (repositories.length > 0) {
+				deferred = serviceRegistry.getService("orion.git.provider").getGitRemote(repositories[0].RemoteLocation).then( //$NON-NLS-0$
+				function(resp){
+					visited++;
+					var length = resp.Children.length;
+						    for (var j=0; j<length; j++){
+								if(resp.Children[j].GitUrl == params[0]){
+									findCommitLocation(repositories, params[1]).then( //$NON-NLS-0$
+											function(commitLocation){
+												if(commitLocation !== null){
+													var commitPageURL = "/git/git-commit.html#" + commitLocation + "?page=1&pageSize=1"; //$NON-NLS-1$ //$NON-NLS-0$
+													//alert(commitLocation);
+													//var remotesWithComit = [];
+													//var remotesNoCommit = [];
+													//var commitUrls = [];
+													if(commitUrls.indexOf(commitPageURL) == -1){								
+													commitUrls.push(commitPageURL);
+													remotesWithComit.push(repositories[0].Name);
+													}
+												}
+											}, function () {
+												var display = [];
+												display.Severity = "warning"; //$NON-NLS-0$
+												display.HTML = false;
+												display.Message = messages["No commits found"];
+												//serviceRegistry.getService("orion.page.message").setProgressResult(display); //$NON-NLS-0$
+												if(remotesNoCommit.indexOf(repositories[0].Name) == -1){
+													//alert("push");
+													remotesNoCommit.push(repositories[0].Name);
+												}
+											}
+										);
+									
+									found = true;
+									if(reposWithRemote.indexOf(repositories[0].Name) == -1){
+										reposWithRemote.push(repositories[0].Name);
+										remotes.push(resp);
+										indexes.push(j);
+										
+									}
+							}
+						}
+						
+					if(visited === (repoNumber)){
+							if(found === true){
+							var fetchUpdateCommand = new mCommands.Command({
+								name: messages["Fetch"],
+								tooltip: messages["Fetch from the remote"],
+								imageClass: "git-sprite-fetch", //$NON-NLS-0$
+								spriteClass: "gitCommandSprite", //$NON-NLS-0$
+								id: "eclipse.orion.git.fetchUpdate", //$NON-NLS-0$
+								callback: function(data) {
+									var item = data.items;
+									remotesWithComit.push("nowy");
+									//alert(remotesWithComit);
+									
+									var path = item.Location;
+									var commandInvocation = data;
+									
+									var handleResponse = function(jsonData, commandInvocation){
+										if (jsonData.JsonData.HostKey){
+											commandInvocation.parameters = null;
+										} else if (!commandInvocation.optionsRequested){
+											if (jsonData.JsonData.User)
+												commandInvocation.parameters = new mCommands.ParametersDescription([new mCommands.CommandParameter("sshpassword", "password", messages["SSH Password:"])], {hasOptionalParameters: true}); //$NON-NLS-1$ //$NON-NLS-0$
+											else
+												commandInvocation.parameters = new mCommands.ParametersDescription([new mCommands.CommandParameter("sshuser", "text", messages["SSH User Name:"]), new mCommands.CommandParameter("sshpassword", "password", messages['SSH Password:'])], {hasOptionalParameters: true}); //$NON-NLS-4$ //$NON-NLS-3$ //$NON-NLS-1$ //$NON-NLS-0$
+										}
+										
+										commandInvocation.errorData = jsonData.JsonData;
+										commandService.collectParameters(commandInvocation);
+									};
+									
+									if (commandInvocation.parameters && commandInvocation.parameters.optionsRequested){
+										commandInvocation.parameters = null;
+										commandInvocation.optionsRequested = true;
+										commandService.collectParameters(commandInvocation);
+										return;
+									}
+									
+									exports.gatherSshCredentials(serviceRegistry, commandInvocation).then(
+										function(options) {
+											var gitService = serviceRegistry.getService("orion.git.provider"); //$NON-NLS-0$
+											var statusService = serviceRegistry.getService("orion.page.message"); //$NON-NLS-0$
+											statusService.createProgressMonitor(gitService.doFetch(path, false,
+													options.gitSshUsername,
+													options.gitSshPassword,
+													options.knownHosts,
+													options.gitPrivateKey,
+													options.gitPassphrase), messages["Fetching remote: "] + path).deferred.then(
+												function(jsonData, secondArg) {
+													exports.handleProgressServiceResponse2(jsonData, serviceRegistry, 
+														function() {
+															gitService.getGitRemote(path).then(
+																function(jsonData){
+																//tu nowe okno
+																	window.location.hash = ",getGitCommit=" + parameters;
+																	var remoteJsonData = jsonData;
+																	if (explorer.parentId === "explorer-tree") { //$NON-NLS-0$
+																		dojo.place(document.createTextNode(messages['Getting git incoming changes...']), "explorer-tree", "only"); //$NON-NLS-2$ //$NON-NLS-1$
+																		gitService.getLog(remoteJsonData.HeadLocation, remoteJsonData.Id).then(function(loadScopedCommitsList) {
+																			explorer.renderer.setIncomingCommits(loadScopedCommitsList.Children);
+																			explorer.loadCommitsList(remoteJsonData.CommitLocation + "?page=1", remoteJsonData, true); //$NON-NLS-0$
+																			
+																		});
+																	}
+																	dojo.hitch(explorer, explorer.changedItem)(item);
+																}, displayErrorOnStatus
+															);
+														}, function (jsonData) {
+															handleResponse(jsonData, commandInvocation);
+														}
+													);
+												}, function(jsonData, secondArg) {
+													exports.handleProgressServiceResponse2(jsonData, serviceRegistry, 
+														function() {
+														
+														}, function (jsonData) {
+															handleResponse(jsonData, commandInvocation);
+														}
+													);
+												}
+											);
+										}
+									);
+								},
+								visibleWhen: function(item) {
+									if (item.Type === "RemoteTrackingBranch") //$NON-NLS-0$
+										return true;
+									if (item.Type === "Remote") //$NON-NLS-0$
+										return true;
+									if (item.Type === "Commit" && item.toRef && item.toRef.Type === "RemoteTrackingBranch") //$NON-NLS-1$ //$NON-NLS-0$
+										return true;
+									return false;
+								}
+							});
+							commandService.addCommand(fetchUpdateCommand);
+								setTimeout(function(){
+									var dialog1 = new orion.git.widgets.GetGitCommitDialog1({
+									title: messages['Content'],
+									diffLocation: item.DiffLocation,
+									rem: remotes,
+									indexes: indexes,
+									repos: reposWithRemote,
+									commitNumber: params[1],
+									commandService: commandService,
+									explorer: explorer,
+									exports: exports,
+									repositories: repositories,
+									commitUrls: commitUrls,
+									remotesWithComit: remotesWithComit,
+									repoUrl: params[0],
+									cloneDialog: cloneDialog
+								});
+								dialog1.startup();
+								dialog1.show();
+								},5000);
+							}
+					else{
+						var dialog2 = new orion.git.widgets.GetGitCommitDialog2({
+							title: messages['Content'],
+							diffLocation: item.DiffLocation,
+							parameters: data.parameters.valueFor("commitNumber"),
+							commitNumber: params[1],
+							repoUrl: params[0],
+							repos: reposWithRemote,
+							repo_found: found,
+							cloneDialog: cloneDialog,
+							openCommitDialog: openCommitDialog,
+							serviceRegistry: serviceRegistry,
+							data: data,
+							func: func
+						});
+						alert(remotesWithComit);
+						dialog2.startup();
+						dialog2.show();
+				}
+			};
+					findRemote(repositories.slice(1), commitNumber, deferred);
+					},
+					function(err){
+						findRemote(repositories.slice(1), commitNumber, deferred);
+					}
+				);
+				}
+				else{
+				deferred.errback();
+				}
+		
+			//findRemote(repositories.slice(1), commitNumber, deferred);
+			return deferred;
+		//deferred.callback(resp.Children[0].GitUrl);
+		};
+		
+		
+
+		var deferred = findRemote(repositories, commitNumber);
+		var func = function(){
+		};
+		}
+		
+		});
+		
+
+	
+	commandService.addCommand(getGitCommitCommand);
+		
 		var openCommitParameters = new mCommands.ParametersDescription([new mCommands.CommandParameter("commitName", "text", messages["Commit name:"])], {hasOptionalParameters: true}); //$NON-NLS-1$ //$NON-NLS-0$
 		
 		var openCommitCommand = new mCommands.Command({
@@ -2192,6 +2491,8 @@ var exports = {};
 					
 					return deferred;
 				};
+				
+				
 				
 				var openCommit = function(repositories) {
 					if (data.parameters.optionsRequested) {
