@@ -336,5 +336,7 @@ define({
 	"Active Branch Log": "Git Log (Active Branch)",
 	"Show the log for the active local branch": "Show the log for the active local branch",
 	"Remote Branch Log": "Git Log (Remote Branch)",
-	"Show the log for the corresponding remote tracking branch": "Show the log for the corresponding remote tracking branch"
+	"Show the log for the corresponding remote tracking branch": "Show the log for the corresponding remote tracking branch",
+	"Merge squash the content from the branch to your active branch" : "Checkout files, discarding all changes",
+	"Merge Squash": "Merge Squash"
 });

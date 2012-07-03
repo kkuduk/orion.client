@@ -1106,8 +1106,8 @@ var exports = {};
 		commandService.addCommand(mergeCommand);
 		
 		var mergeSquashCommand = new mCommands.Command({
-			name : messages['Merge Squash'],
-			tooltip: messages['Merge squash the content from the branch to your active branch'],
+			name : messages["Merge Squash"],
+			tooltip: messages["Merge squash the content from the branch to your active branch"],
 			imageClass: "git-sprite-merge", //$NON-NLS-0$
 			spriteClass: "gitCommandSprite", //$NON-NLS-0$
 			id : "eclipse.orion.git.mergeSquash", //$NON-NLS-0$
@@ -1117,7 +1117,7 @@ var exports = {};
 				var progressService = serviceRegistry.getService("orion.page.message"); //$NON-NLS-0$
 				gitService.doMerge(item.HeadLocation, item.Name, true).then(function(result){
 						var display = [];
-						
+						console.log(result);
 						if (result.jsonData && (result.jsonData.Result == "FAST_FORWARD" || result.jsonData.Result == "ALREADY_UP_TO_DATE")){ //$NON-NLS-1$ //$NON-NLS-0$
 							dojo.query(".treeTableRow").forEach(function(node, i) { //$NON-NLS-0$
 								dojo.toggleClass(node, "incomingCommitsdRow", false); //$NON-NLS-0$
@@ -1126,7 +1126,7 @@ var exports = {};
 							display.HTML = false;
 							display.Message = result.jsonData.Result;
 
-							refreshStatusCallBack();
+							// refreshStatusCallBack();
 							progressService.setProgressResult(display);
 						} else if (result.jsonData){
 							display.Severity = "Warning"; //$NON-NLS-0$
